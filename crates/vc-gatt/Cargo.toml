@@ -1,0 +1,12 @@
+[package]
+name = "vc-gatt"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+heapless = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
