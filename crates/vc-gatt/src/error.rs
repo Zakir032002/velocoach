@@ -1,21 +1,43 @@
-//The important idea is that bad input produces Result::Err instead of crashing the program
+use core::fmt;
+
+/// Why a payload could not be decoded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecodeError {
-    Truncated { need: u8, have: u8 },
-    InvalidFlags,
-    InvalidValue,
+    /// Zero-length payload.
     Empty,
+
+    /// The flags promised a field the payload is too short to hold.
+    Truncated { need: usize, have: usize },
 }
 
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Empty => f.write_str("empty payload"),
+            Self::Truncated { need, have } => {
+                write!(f, "truncated: need {need} bytes, have {have}")
+            }
+        }
+    }
+}
+
+impl core::error::Error for DecodeError {}
+
+/// Why a struct could not be encoded into the provided buffer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EncodeError {
-    BufferTooSmall,
+    /// `need` is where the first write that did not fit would have ended.
+    BufferTooSmall { need: usize, have: usize },
 }
 
-//              vc-gatt
-//                 │
-//       ┌─────────┴─────────┐
-//       ▼                   ▼
-//  DecodeError          EncodeError
-//       │                   │
-//  "bytes are bad"     "can't fit data"
+impl fmt::Display for EncodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BufferTooSmall { need, have } => {
+                write!(f, "buffer too small: need {need} bytes, have {have}")
+            }
+        }
+    }
+}
+
+impl core::error::Error for EncodeError {}

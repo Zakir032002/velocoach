@@ -1,178 +1,148 @@
 #![allow(unused)]
-use core::default;
+use crate::{DecodeError, EncodeError, MAX_PAYLOAD, cursor::Cursor, cursor::Writer};
+use heapless::Vec;
+// this file is for decoding the actual incoming bytes and trasforming it into a type struct
 
-use crate::{
-    PAYLOAD_MAX,              //20, the biggest packet Bluetooth allows by default.
-    cursor::{Cursor, Writer}, //A safe reader. It reads bytes one at a time and returns an error if you run out.A safe writer into a fixed 20-byte box.
-    error::DecodeError,
-};
+//the actual structure of the data thats coming to us is
+// ┌─────────────────┬─────────────────┬──────────────────┬──────────────────────┐
+//  │ FLAGS           │ HEART RATE      │ ENERGY BURNED    │ R-R INTERVALS        │
+//  │ (Mandatory)     │ (Mandatory)     │ (Optional)       │ (Optional)           │
+//  │ 1 byte          │ 1 or 2 bytes    │ 0 or 2 bytes     │ 0 to N bytes         │
+//  └─────────────────┴─────────────────┴──────────────────┴──────────────────────┘
+// Most RR values that fit in 20 bytes:
+// flags + u8 HR + 9 x u16.
+pub const RR_CAP: usize = 9;
+const FLAG_HR_U16: u8 = 1 << 0; //checks if the hr is u8 or u16
+const CONTACT_MASK: u8 = 0b0000_0110; // Bits 1-2
+const CONTACT_NOT_DETECTED: u8 = 0b0000_0100; // (Value: 4)
+const CONTACT_DETECTED: u8 = 0b0000_0110; // (Value: 6)
+const FLAG_ENERGY: u8 = 1 << 3; // Bit 3 (Value: 8)
+const FLAG_RR: u8 = 1 << 4; // Bit 4 (Value: 16)
 
-//this file does two jobs
-//  DECODE:   bytes ───────────────► nice struct   (read the letter)
-//            16 9E 00 04              Hrm { bpm: 158, ... }
+// Bit:   7     6     5     4     3     2     1     0
+//      +-----+-----+-----+-----+-----+-----+-----+-----+
+//      |  0  |  0  |  0  | RR  | EN  |   CONTACT   | HR  |
+//      +-----+-----+-----+-----+-----+-----+-----+-----+
+//                          │     │      │     │      │
+//       RR Intervals ──────┘     │      │     │      │
+//       1 = Present              │      │     │      │
+//       0 = Missing              │      │     │      │
+//                                │      │     │      │
+//       Energy Expended ─────────┘      │     │      │
+//       1 = Present                     │     │      │
+//       0 = Missing                     │     │      │
+//                                       │     │      │
+//       Sensor Contact (Bits 1 & 2) ────┴─────┘      │
+//       00 or 01 = Feature not supported             │
+//       10 (Value 4) = Sensor off body               │
+//       11 (Value 6) = Sensor on skin                │
+//                                                    │
+//       Heart Rate Format ───────────────────────────┘
+//       1 = 16-bit (For heart rates > 255 bpm)
+//       0 = 8-bit (For normal heart rates 0-255)
 
-//  ENCODE:   nice struct ──────────► bytes        (write the letter)
-//            Hrm { bpm: 158, ... }    16 9E 00 04
-
-pub const MAX_RR: usize = 9; //9 beacuse its the max bytes rr can have
-const FMT_U16: u8 = 1 << 0; // checks if the hr is a u8 if 0 and u16 if 1
-const ENERGY: u8 = 1 << 3; // checks if the bluetooth packet has energy or not,,energy is calories burmned or not
-const RR: u8 = 1 << 4; // checks if rr is present or not
-
-// THE FLAGS BYTE (8 switches)
-
-//    Bit:      7     6     5     4     3     2     1     0
-//           +-----+-----+-----+-----+-----+-----+-----+-----+
-//           |  0  |  0  |  0  |  1  |  0  |  1  |  1  |  0  |  = 0x16
-//           +-----+-----+-----+-----+-----+-----+-----+-----+
-//                                │     │     \_______/     │
-//                                │     │         │         └── FMT_U16 (1 << 0)[cite: 95]
-//                                │     │         │             0 = u8 BPM
-//                                │     │         │             1 = u16 BPM[cite: 29, 95]
-//                                │     │         │
-//                                │     │         └──────────── Contact (Bits 1-2)[cite: 29, 95]
-//                                │     │                       0 or 1 = Not Supported[cite: 29, 95]
-//                                │     │                       2 = No Contact[cite: 29, 96]
-//                                │     │                       3 = Contact OK[cite: 29, 96]
-//                                │     │
-//                                │     └────────────────────── ENERGY (1 << 3)[cite: 29, 95]
-//                                │                             0 = No energy data[cite: 29, 95]
-//                                │                             1 = u16 kJ follows[cite: 29, 95]
-//                                │
-//                                └──────────────────────────── RR (1 << 4)[cite: 29, 95]
-//                                                              0 = No RR list[cite: 29, 95]
-//                                                              1 = RR list follows[cite: 29, 95]
-
-//so now reamining one is Contact,,for this we have 4 states which are 0,1,2,3
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+//enum for contact because we exactly know what type od contact exists
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Contact {
-    #[default]
+    /// Bits 1-2 = 0 or 1.
     NotSupported,
-    NoContact,
-    Contact,
+    /// Bits 1-2 = 2: supported, strap not on skin.
+    NotDetected,
+    /// Bits 1-2 = 3.
+    Detected,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+//now the main data type the incoming packets store into
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Hrm {
-    pub bpm: u16,               // beats per minute ,, and u16 bcz it can exceed 255
-    pub contact: Contact,       //
-    pub energy_kj: Option<u16>, // here this is optional so we have used option
-    pub rr_len: u8,
-    pub rr: [u16; MAX_RR],
+    pub bpm: u16,
+    pub contact: Contact,
+    pub energy_kj: Option<u16>,
+    pub rr_1024: Vec<u16, RR_CAP>, //here heapless vec means we have to define arr size at upfront not dynamically allocated
 }
 
-//now from the struct the only thing thats not fixed is rr,,i mean why do we even need to read the leftovers of rr
-impl Hrm {
-    pub fn rr(&self) -> &[u16] {
-        self.rr.get(..usize::from(self.rr_len)).unwrap_or(&[])
-        //get is a safe slice getter
-    }
-}
-
-pub const fn rr_capacity(wide: bool, energy: bool) -> usize {
-    let fixed = 1 + if wide { 2 } else { 1 } + if energy { 2 } else { 0 };
-    (PAYLOAD_MAX - fixed) / 2
-}
-
-//now lets decode it
-//  b ──► empty? ──► flags ──► HR ──► contact ──► energy? ──► build ──► RR? ──► Ok
-//         │           │        │                    │                    │
-//        Err(Empty)  ?-fail   ?-fail              ?-fail            Err(Truncated)
+// / Decodes any payload without panicking.
+// /
+// / Reserved flag bits are ignored.
+// /
+// / Packets from a larger MTU with more than `RR_CAP` RR values keep the
+// / oldest `RR_CAP`; the coach does not use RR yet
 pub fn decode_hrm(b: &[u8]) -> Result<Hrm, DecodeError> {
     if b.is_empty() {
         return Err(DecodeError::Empty);
     }
     let mut c = Cursor::new(b);
     let flags = c.u8()?;
-    let bpm = if flags & FMT_U16 != 0 {
-        c.u16()?
+    let bpm = if flags & FLAG_HR_U16 != 0 {
+        c.u16_le()?
     } else {
         u16::from(c.u8()?)
     };
-    let contact = match (flags >> 1) & 0b11 {
-        2 => Contact::NoContact,
-        3 => Contact::Contact,
+    let contact = match flags & CONTACT_MASK {
+        CONTACT_NOT_DETECTED => Contact::NotDetected,
+        CONTACT_DETECTED => Contact::Detected,
         _ => Contact::NotSupported,
     };
-    let energy_kj = if flags & ENERGY != 0 {
-        Some(c.u16()?)
+    let energy_kj = if flags & FLAG_ENERGY != 0 {
+        Some(c.u16_le()?)
     } else {
         None
     };
-    let mut out = Hrm {
+    let mut rr_1024 = Vec::new();
+    if flags & FLAG_RR != 0 {
+        // RR values are u16s to the end; an odd leftover byte is malformed.
+        if !c.remaining().is_multiple_of(2) {
+            return Err(DecodeError::Truncated {
+                need: b.len().saturating_add(1),
+                have: b.len(),
+            });
+        }
+        while c.remaining() >= 2 {
+            let rr = c.u16_le()?;
+            if rr_1024.push(rr).is_err() {
+                break;
+            }
+        }
+    }
+    Ok(Hrm {
         bpm,
         contact,
         energy_kj,
-        ..Hrm::default()
-    };
-    //filling out rr
-    if flags & RR != 0 {
-        let rem = c.remaining();
-
-        if rem == 0 || rem % 2 == 1 {
-            return Err(DecodeError::Truncated {
-                need: 2,
-                have: (rem % 2) as u8,
-            });
-        }
-
-        for slot in out.rr.iter_mut() {
-            if c.remaining() < 2 {
-                break;
-            }
-
-            *slot = c.u16()?;
-            out.rr_len += 1;
-        }
-    }
-
-    Ok(out)
+        rr_1024,
+    })
 }
 
-pub fn encode_hrm(m: &Hrm, out: &mut [u8; PAYLOAD_MAX]) -> usize {
-    let wide = m.bpm > u16::from(u8::MAX); // ensure 2 if heart rate exceeds 255
-    let energy = m.energy_kj.is_some(); //if energy is there or that feature is not there
-    let rr = m.rr(); // it is the slice of valid rr intervals
-    let n_rr = rr.len().min(rr_capacity(wide, energy)); // it is to check how many 2-byte intervals can fit into 20byte payload
-    let contact_bits: u8 = match m.contact {
+/// Encodes the shortest valid packet: u8 heart rate when it fits.
+/// the gerral flow is here the max bt data we can send is 20 bytes, so 1 byte flag, second hr, and remaining energy and rr intervals
+pub fn encode_hrm(m: &Hrm, out: &mut [u8; MAX_PAYLOAD]) -> Result<usize, EncodeError> {
+    let narrow = u8::try_from(m.bpm).ok();
+
+    let mut flags = match m.contact {
         Contact::NotSupported => 0,
-        Contact::Contact => 3,
-        Contact::NoContact => 2,
+        Contact::NotDetected => CONTACT_NOT_DETECTED,
+        Contact::Detected => CONTACT_DETECTED,
     };
-    //now set the flag bits
-    let mut flags = contact_bits << 1;
-    if wide {
-        flags |= FMT_U16;
+    if narrow.is_none() {
+        flags |= FLAG_HR_U16;
     }
-    if energy {
-        flags |= ENERGY;
+    if m.energy_kj.is_some() {
+        flags |= FLAG_ENERGY;
     }
-    if n_rr > 0 {
-        flags |= RR;
-    }
-    //     FINAL ASSEMBLED FLAGS BYTE
-    //    Bit:     7   6   5   4   3   2   1   0
-    //           +---+---+---+---+---+---+---+---+
-    //           | 0 | 0 | 0 | 1 | 0 | 1 | 1 | 0 | = 0x16
-    //           +---+---+---+---+---+---+---+---+
-    //                         │   │   \___/   │
-    //                         │   │     │     └── Bit 0: FMT_U16 (0 = 8-bit BPM)
-    //                         │   │     └──────── Bits 1-2: Contact (3 = Contact OK)
-    //                         │   └────────────── Bit 3: ENERGY (0 = Not present)
-    //                         └────────────────── Bit 4: RR (1 = RR intervals follow)
-    let mut w = Writer::new(out);
-    w.u8(flags);
-    if wide {
-        w.u16(m.bpm);
-    } else {
-        w.u8(u8::try_from(m.bpm).unwrap_or(u8::MAX));
+    if !m.rr_1024.is_empty() {
+        flags |= FLAG_RR;
     }
 
+    let mut w = Writer::new(out);
+    w.u8(flags)?;
+    match narrow {
+        Some(b) => w.u8(b)?,
+        None => w.u16_le(m.bpm)?,
+    }
     if let Some(e) = m.energy_kj {
-        w.u16(e);
+        w.u16_le(e)?;
     }
-    for v in rr.iter().take(n_rr) {
-        w.u16(*v);
+    for rr in m.rr_1024.iter() {
+        w.u16_le(*rr)?;
     }
-    w.written()
+    Ok(w.written())
 }

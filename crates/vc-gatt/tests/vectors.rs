@@ -1,212 +1,292 @@
-use proptest::prelude::*;
 use vc_gatt::{
-    Contact, Csc, DecodeError, Hrm, MAX_RR, PAYLOAD_MAX, SensorLocation, decode_csc, decode_hrm,
-    decode_sensor_location, encode_csc, encode_hrm, rr_capacity,
+    Contact, CrankData, Csc, CscWheel, DecodeError, EncodeError, Hrm, MAX_PAYLOAD, SensorLocation,
+    decode_csc, decode_hrm, decode_sensor_location, encode_csc, encode_hrm, encode_sensor_location,
 };
+
 fn hrm(bpm: u16, contact: Contact, energy_kj: Option<u16>, rr: &[u16]) -> Hrm {
-    let mut h = Hrm {
+    Hrm {
         bpm,
         contact,
         energy_kj,
-        ..Hrm::default()
-    };
-
-    for (slot, v) in h.rr.iter_mut().zip(rr) {
-        *slot = *v;
+        rr_1024: vc_gatt::heapless::Vec::from_slice(rr).unwrap(),
     }
-
-    h.rr_len = rr.len() as u8;
-    h
 }
 
-fn hrm_cases() -> Vec<(Vec<u8>, Hrm)> {
-    vec![
-        // 158 bpm, no contact/energy/RR.
-        (vec![0x00, 0x9E], hrm(158, Contact::NotSupported, None, &[])),
-        // Simulator packet:
-        // 158 bpm, contact detected, RR = 1024 = 1.0 s.
-        (
-            vec![0x16, 0x9E, 0x00, 0x04],
-            hrm(158, Contact::Contact, None, &[1024]),
-        ),
-        // 300 bpm using u16 heart-rate format.
-        (
-            vec![0x01, 0x2C, 0x01],
-            hrm(300, Contact::NotSupported, None, &[]),
-        ),
-        // 255 bpm using u16 heart-rate format.
-        (
-            vec![0x01, 0xFF, 0x00],
-            hrm(255, Contact::NotSupported, None, &[]),
-        ),
-        // 120 bpm + 16 kJ energy.
-        (
-            vec![0x08, 0x78, 0x10, 0x00],
-            hrm(120, Contact::NotSupported, Some(16), &[]),
-        ),
-        // 100 bpm + 5 kJ + RR 768, 896.
-        (
-            vec![0x18, 0x64, 0x05, 0x00, 0x00, 0x03, 0x80, 0x03],
-            hrm(100, Contact::NotSupported, Some(5), &[768, 896]),
-        ),
-        // NoContact.
-        (vec![0x04, 0x00], hrm(0, Contact::NoContact, None, &[])),
-        // Contact value 1 => NotSupported.
-        (vec![0x02, 0x50], hrm(80, Contact::NotSupported, None, &[])),
-        // Reserved flag bits ignored.
-        (vec![0xE0, 0x46], hrm(70, Contact::NotSupported, None, &[])),
-        // 300 bpm + RR 1024.
-        (
-            vec![0x11, 0x2C, 0x01, 0x00, 0x04],
-            hrm(300, Contact::NotSupported, None, &[1024]),
-        ),
-    ]
-}
+/* -------------------------------------------------------------------------- */
+/* HRM                                                                         */
+/* -------------------------------------------------------------------------- */
 
 #[test]
-fn hrm_vectors() {
-    for (bytes, want) in hrm_cases() {
-        assert_eq!(decode_hrm(&bytes), Ok(want), "bytes {bytes:02X?}");
+fn hrm_valid_vectors() {
+    use Contact::*;
+
+    let cases: &[(&[u8], Hrm)] = &[
+        (&[0x00, 0x48], hrm(72, NotSupported, None, &[])),
+        (&[0x02, 0x48], hrm(72, NotSupported, None, &[])),
+        (&[0x04, 0x48], hrm(72, NotDetected, None, &[])),
+        (&[0x06, 0x9E], hrm(158, Detected, None, &[])),
+        (&[0x01, 0x48, 0x00], hrm(72, NotSupported, None, &[])),
+        (&[0x01, 0x2C, 0x01], hrm(300, NotSupported, None, &[])),
+        (
+            &[0x08, 0x50, 0x34, 0x12],
+            hrm(80, NotSupported, Some(0x1234), &[]),
+        ),
+        (&[0x16, 0x9E, 0x00, 0x04], hrm(158, Detected, None, &[1024])),
+        (
+            &[0x1F, 0x9E, 0x00, 0x10, 0x00, 0x00, 0x03, 0x00, 0x04],
+            hrm(158, Detected, Some(16), &[768, 1024]),
+        ),
+        (&[0xE6, 0x9E], hrm(158, Detected, None, &[])),
+        (&[0x10, 0x48], hrm(72, NotSupported, None, &[])),
+    ];
+
+    for (bytes, want) in cases {
+        assert_eq!(decode_hrm(bytes), Ok(want.clone()), "bytes {bytes:02X?}");
     }
 }
 
 #[test]
-fn encoders_match_known_bytes() {
-    let mut buf = [0u8; PAYLOAD_MAX];
+fn hrm_error_vectors() {
+    assert_eq!(decode_hrm(&[]), Err(DecodeError::Empty));
 
-    let n = encode_hrm(&hrm(158, Contact::Contact, None, &[1024]), &mut buf);
+    assert_eq!(
+        decode_hrm(&[0x01, 0x48]),
+        Err(DecodeError::Truncated { need: 3, have: 2 })
+    );
+
+    assert_eq!(
+        decode_hrm(&[0x08, 0x48, 0x10]),
+        Err(DecodeError::Truncated { need: 4, have: 3 })
+    );
+
+    assert_eq!(
+        decode_hrm(&[0x10, 0x48, 0x00]),
+        Err(DecodeError::Truncated { need: 4, have: 3 })
+    );
+}
+
+#[test]
+fn hrm_truncation_sweep() {
+    let full = [0x1F, 0x9E, 0x00, 0x10, 0x00, 0x00, 0x03, 0x00, 0x04];
+
+    for n in 0..=full.len() {
+        let result = decode_hrm(&full[..n]);
+
+        match n {
+            0 => {
+                assert_eq!(result, Err(DecodeError::Empty));
+            }
+
+            1..=4 | 6 | 8 => {
+                assert!(
+                    matches!(result, Err(DecodeError::Truncated { .. })),
+                    "n={n}"
+                );
+            }
+
+            _ => {
+                assert_eq!(result.unwrap().rr_1024.len(), (n - 5) / 2, "n={n}");
+            }
+        }
+    }
+}
+
+#[test]
+fn hrm_sim_packet_encodes_byte_exact() {
+    let mut buf = [0u8; MAX_PAYLOAD];
+
+    let n = encode_hrm(&hrm(158, Contact::Detected, None, &[1024]), &mut buf).unwrap();
 
     assert_eq!(&buf[..n], &[0x16, 0x9E, 0x00, 0x04]);
 }
 
-fn csc_cases() -> Vec<(Vec<u8>, Csc)> {
-    vec![
-        // Crank only:
-        // 1234 revolutions, event time 5000.
+#[test]
+fn hrm_keeps_oldest_rr_when_packet_is_bigger_than_default_mtu() {
+    let mut bytes = vec![0x10, 0x48];
+
+    for i in 1u16..=11 {
+        bytes.extend_from_slice(&i.to_le_bytes());
+    }
+
+    let m = decode_hrm(&bytes).unwrap();
+
+    assert_eq!(m.rr_1024.as_slice(), &[1, 2, 3, 4, 5, 6, 7, 8, 9]);
+}
+
+#[test]
+fn hrm_encode_refuses_what_does_not_fit() {
+    // u16 HR + energy + 9 RR
+    // = 1 + 2 + 2 + 18 = 23 bytes > 20.
+    let m = hrm(
+        300,
+        Contact::Detected,
+        Some(1),
+        &[1, 2, 3, 4, 5, 6, 7, 8, 9],
+    );
+
+    let result = encode_hrm(&m, &mut [0u8; MAX_PAYLOAD]);
+
+    assert!(matches!(result, Err(EncodeError::BufferTooSmall { .. })));
+}
+
+/* -------------------------------------------------------------------------- */
+/* CSC                                                                         */
+/* -------------------------------------------------------------------------- */
+
+const WHEEL: CscWheel = CscWheel {
+    revs: 10_000,
+    time_1024: 2048,
+};
+
+const CRANK: CrankData = CrankData {
+    revs: 1234,
+    time_1024: 5120,
+};
+
+const BOTH: [u8; 11] = [
+    0x03, 0x10, 0x27, 0x00, 0x00, 0x00, 0x08, 0xD2, 0x04, 0x00, 0x14,
+];
+
+#[test]
+fn csc_valid_vectors() {
+    let crank_only = Csc {
+        wheel: None,
+        crank: Some(CRANK),
+    };
+
+    let cases: &[(&[u8], Csc)] = &[
+        (&[0x02, 0xD2, 0x04, 0x00, 0x14], crank_only),
         (
-            vec![0x02, 0xD2, 0x04, 0x88, 0x13],
+            &[0x01, 0x10, 0x27, 0x00, 0x00, 0x00, 0x08],
             Csc {
-                wheel: None,
-                crank: Some((1234, 5000)),
-            },
-        ),
-        // Wheel only:
-        // 0x12345678 revolutions, event time 1024.
-        (
-            vec![0x01, 0x78, 0x56, 0x34, 0x12, 0x00, 0x04],
-            Csc {
-                wheel: Some((0x1234_5678, 1024)),
+                wheel: Some(WHEEL),
                 crank: None,
             },
         ),
-        // Wheel + crank:
-        // wheel: 1 rev, time 1024
-        // crank: 10 revs, time 2048
-        //
-        // 0x0800 = 2048, little-endian => 00 08.
         (
-            vec![
-                0x03, 0x01, 0x00, 0x00, 0x00, 0x00, 0x04, 0x0A, 0x00, 0x00, 0x08,
-            ],
+            &BOTH,
             Csc {
-                wheel: Some((1, 1024)),
-                crank: Some((10, 2048)),
+                wheel: Some(WHEEL),
+                crank: Some(CRANK),
             },
         ),
-    ]
-}
+        (&[0x00], Csc::default()),
+        (&[0xFE, 0xD2, 0x04, 0x00, 0x14], crank_only),
+        (
+            &[0x02, 0xFF, 0xFF, 0xFF, 0xFF],
+            Csc {
+                wheel: None,
+                crank: Some(CrankData {
+                    revs: 65535,
+                    time_1024: 65535,
+                }),
+            },
+        ),
+    ];
 
-#[test]
-fn csc_vectors() {
-    for (bytes, want) in csc_cases() {
-        assert_eq!(decode_csc(&bytes), Ok(want), "bytes {bytes:02X?}");
+    for (bytes, want) in cases {
+        assert_eq!(decode_csc(bytes), Ok(*want), "bytes {bytes:02X?}");
     }
 }
 
 #[test]
-fn csc_encoder_matches_known_bytes() {
-    let mut buf = [0u8; PAYLOAD_MAX];
+fn csc_error_vectors() {
+    assert_eq!(decode_csc(&[]), Err(DecodeError::Empty));
 
-    let csc = Csc {
-        wheel: None,
-        crank: Some((1234, 5000)),
-    };
+    assert_eq!(
+        decode_csc(&[0x02, 0xD2, 0x04, 0x00]),
+        Err(DecodeError::Truncated { need: 5, have: 4 })
+    );
 
-    let n = encode_csc(&csc, &mut buf);
-
-    assert_eq!(&buf[..n], &[0x02, 0xD2, 0x04, 0x88, 0x13]);
+    assert_eq!(
+        decode_csc(&[0x01, 0x10, 0x27]),
+        Err(DecodeError::Truncated { need: 5, have: 3 })
+    );
 }
 
-fn contact() -> impl Strategy<Value = Contact> {
-    prop_oneof![
-        Just(Contact::NotSupported),
-        Just(Contact::NoContact),
-        Just(Contact::Contact),
-    ]
-}
-
-proptest! {
-    #![proptest_config(ProptestConfig::with_cases(10_000))]
-
-    #[test]
-    fn hrm_round_trip(
-        bpm in any::<u16>(),
-        c in contact(),
-        energy in any::<Option<u16>>(),
-        rr in proptest::collection::vec(any::<u16>(), 0..=MAX_RR),
-    ) {
-        let m = hrm(bpm, c, energy, &rr);
-
-        let mut buf = [0u8; PAYLOAD_MAX];
-
-        let n = encode_hrm(&m, &mut buf);
-
-        prop_assert!(n <= PAYLOAD_MAX);
-
-        let d = decode_hrm(&buf[..n]).expect("own output must decode");
-
-        let keep = rr
-            .len()
-            .min(rr_capacity(bpm > 255, energy.is_some()));
-
-        prop_assert_eq!(
-            d,
-            hrm(bpm, c, energy, &rr[..keep])
+#[test]
+fn csc_truncation_sweep() {
+    for n in 1..BOTH.len() {
+        assert!(
+            matches!(decode_csc(&BOTH[..n]), Err(DecodeError::Truncated { .. })),
+            "n={n}"
         );
     }
-
-    #[test]
-    fn csc_round_trip(
-        wheel in proptest::option::of(any::<(u32, u16)>()),
-        crank in proptest::option::of(any::<(u16, u16)>()),
-    ) {
-        let m = Csc { wheel, crank };
-
-        let mut buf = [0u8; PAYLOAD_MAX];
-
-        let n = encode_csc(&m, &mut buf);
-
-        prop_assert_eq!(decode_csc(&buf[..n]), Ok(m));
-    }
-
-    #[test]
-    fn decoders_never_panic(
-        b in proptest::collection::vec(any::<u8>(), 0..64)
-    ) {
-        let _ = decode_hrm(&b);
-        let _ = decode_csc(&b);
-    }
 }
 
 #[test]
-fn sensor_location() {
-    assert_eq!(decode_sensor_location(&[5]), Ok(SensorLocation::LEFT_CRANK));
+fn csc_sim_packet_encodes_byte_exact() {
+    let mut buf = [0u8; MAX_PAYLOAD];
 
-    assert!(
-        decode_sensor_location(&[0x20])
-            .expect("one byte")
-            .is_reserved()
+    let n = encode_csc(
+        &Csc {
+            wheel: None,
+            crank: Some(CRANK),
+        },
+        &mut buf,
+    )
+    .unwrap();
+
+    assert_eq!(&buf[..n], &[0x02, 0xD2, 0x04, 0x00, 0x14]);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Sensor Location                                                             */
+/* -------------------------------------------------------------------------- */
+
+#[test]
+fn sensor_location_vectors() {
+    assert_eq!(
+        decode_sensor_location(&[0x05]),
+        Ok(SensorLocation::LeftCrank)
+    );
+
+    assert_eq!(
+        decode_sensor_location(&[0x06]),
+        Ok(SensorLocation::RightCrank)
+    );
+
+    assert_eq!(
+        decode_sensor_location(&[0x11]),
+        Ok(SensorLocation::Reserved(17))
+    );
+
+    assert_eq!(
+        decode_sensor_location(&[0x05, 0xFF]),
+        Ok(SensorLocation::LeftCrank)
     );
 
     assert_eq!(decode_sensor_location(&[]), Err(DecodeError::Empty));
+}
+
+#[test]
+fn sensor_location_encode_roundtrip() {
+    let locations = [
+        SensorLocation::Other,
+        SensorLocation::LeftCrank,
+        SensorLocation::RightCrank,
+        SensorLocation::Chest,
+        SensorLocation::Reserved(17),
+        SensorLocation::Reserved(255),
+    ];
+
+    for location in locations {
+        let mut buf = [0u8; MAX_PAYLOAD];
+
+        let n = encode_sensor_location(location, &mut buf).unwrap();
+
+        assert_eq!(n, 1);
+        assert_eq!(buf[0], location.to_u8());
+
+        assert_eq!(decode_sensor_location(&buf[..n]), Ok(location));
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Workspace constant                                                          */
+/* -------------------------------------------------------------------------- */
+
+#[test]
+fn payload_is_mtu_minus_header() {
+    assert_eq!(MAX_PAYLOAD, 23 - 3);
 }

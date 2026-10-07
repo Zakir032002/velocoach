@@ -1,3 +1,6 @@
+//! vc-gatt: Bluetooth SIG byte layouts <-> typed structs.
+//! no_std, no heap, never panics on any input.
+
 #![cfg_attr(not(test), no_std)]
 #![deny(
     clippy::unwrap_used,
@@ -5,21 +8,20 @@
     clippy::panic,
     clippy::indexing_slicing
 )]
-pub mod csc;
+#![cfg_attr(test, allow(clippy::indexing_slicing))]
+
 mod cursor;
+
+pub mod csc;
 pub mod error;
 pub mod hrm;
 pub mod location;
-pub use csc::{Csc, decode_csc, encode_csc};
-pub use error::{DecodeError, EncodeError};
-pub use hrm::{Contact, Hrm, MAX_RR, decode_hrm, encode_hrm, rr_capacity};
-pub use location::{SensorLocation, decode_sensor_location};
-pub const PAYLOAD_MAX: usize = 20;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn payload_is_mtu_minus_header() {
-        assert_eq!(super::PAYLOAD_MAX, 23 - 3);
-    }
-}
+pub use csc::{CrankData, Csc, CscWheel, decode_csc, encode_csc};
+pub use error::{DecodeError, EncodeError};
+pub use heapless;
+pub use hrm::{Contact, Hrm, RR_CAP, decode_hrm, encode_hrm};
+pub use location::{SensorLocation, decode_sensor_location, encode_sensor_location};
+
+/// Default ATT MTU (23) minus the 3-byte ATT header.
+pub const MAX_PAYLOAD: usize = 20;
