@@ -10,9 +10,9 @@
 )]
 #![cfg_attr(test, allow(clippy::indexing_slicing))]
 
-mod cursor;
-
+pub mod cpm;
 pub mod csc;
+mod cursor;
 pub mod error;
 pub mod hrm;
 pub mod location;

@@ -23,7 +23,7 @@ impl<'a> Cursor<'a> {
         self.buf.len().saturating_sub(self.pos)
     }
     //now we have to takeout the byte and move forword the cursor becoz we dont need that anymore
-    fn take<const N: usize>(&mut self) -> Result<[u8; N], DecodeError> {
+    pub(crate) fn take<const N: usize>(&mut self) -> Result<[u8; N], DecodeError> {
         let end = self.pos.saturating_add(N);
 
         let truncated = DecodeError::Truncated {
@@ -51,6 +51,39 @@ impl<'a> Cursor<'a> {
     //take 4 bytes
     pub(crate) fn u32_le(&mut self) -> Result<u32, DecodeError> {
         Ok(u32::from_le_bytes(self.take()?))
+    }
+    //it is used beacuse when the pedel goes backwords etc, the power meter may give -ve numbers
+    //and can change the whole energy values to extreme if we dont convert it
+    pub(crate) fn i16_le(&mut self) -> Result<i16, DecodeError> {
+        Ok(i16::from_le_bytes(self.take()?))
+    }
+    // Why it is needed (Day 3 requirement):
+    // Used by `vcsim.rs` for nanosecond timestamps (`t0_ns`, `t_rx_ns`, `t_tx_ns`, `t_client_ns`)[cite: 138, 139, 140].
+    // A 32-bit nanosecond counter wraps around to 0 every 4.29 seconds, making latency tracking impossible[cite: 26, 27].
+    // A 64-bit integer counts nanoseconds continuously for 584 years[cite: 123].
+    pub(crate) fn u64_le(&mut self) -> Result<u64, DecodeError> {
+        Ok(u64::from_le_bytes(self.take()?))
+    }
+    //when measuring in nano seconds the timer should preserve the time for the entire ride so u64 is used
+
+    // Asserts that no unread bytes remain in the cursor[cite: 123].
+    //
+    // Why it is needed (Day 3 requirement):
+    // Enforces strict length verification on our custom `VC-SIM` protocol[cite: 122, 135].
+    // While standard BLE sensors tolerate trailing reserved bytes, a VC-SIM control message
+    // that arrives with unexpected trailing bytes indicates memory corruption or a framing bug[cite: 136, 143].
+    //
+    // How it works:
+    // If `remaining() == 0`, returns `Ok(())`[cite: 123]. Otherwise, returns `Err(DecodeError::TooLong)`[cite: 123].
+    pub(crate) fn finish(&self) -> Result<(), DecodeError> {
+        if self.remaining() == 0 {
+            Ok(())
+        } else {
+            Err(DecodeError::TooLong {
+                expected: self.pos,
+                have: self.buf.len(),
+            })
+        }
     }
 }
 //now we have to implement the writer,,and it does the opposite of cursor,,we will pack the bytes
@@ -101,5 +134,17 @@ impl<'a> Writer<'a> {
 
     pub(crate) fn u32_le(&mut self, v: u32) -> Result<(), EncodeError> {
         self.put(&v.to_le_bytes())
+    }
+
+    pub(crate) fn i16_le(&mut self, v: i16) -> Result<(), EncodeError> {
+        self.put(&v.to_le_bytes())
+    }
+
+    pub(crate) fn u64_le(&mut self, v: u64) -> Result<(), EncodeError> {
+        self.put(&v.to_le_bytes())
+    }
+
+    pub(crate) fn bytes(&mut self, v: &[u8]) -> Result<(), EncodeError> {
+        self.put(v)
     }
 }
