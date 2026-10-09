@@ -14,9 +14,9 @@ pub mod cpm;
 pub mod csc;
 mod cursor;
 pub mod error;
+pub mod feature;
 pub mod hrm;
 pub mod location;
-
 pub use csc::{CrankData, Csc, CscWheel, decode_csc, encode_csc};
 pub use error::{DecodeError, EncodeError};
 pub use heapless;
