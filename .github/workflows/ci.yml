@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  rust:
+    name: Rust checks and no_std build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabihf
+          components: rustfmt, clippy
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test vc-gatt
+        run: cargo test -p vc-gatt
+
+      - name: Check Cortex-M no_std build
+        run: cargo build -p vc-gatt --target thumbv7em-none-eabihf
+
+  fuzz:
+    name: Fuzz smoke tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@nightly
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: crates/vc-gatt/fuzz
+
+      - name: 60 s per target
+        working-directory: crates/vc-gatt
+        run: |
+          for t in hrm cpm csc telem ctrl; do
+            cargo fuzz run "$t" -- -max_total_time=60
+          done

@@ -1,0 +1,50 @@
+[package]
+name = "vc-gatt-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+vc-gatt = { path = ".." }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "hrm"
+path = "fuzz_targets/hrm.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "cpm"
+path = "fuzz_targets/cpm.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "csc"
+path = "fuzz_targets/csc.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "telem"
+path = "fuzz_targets/telem.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ctrl"
+path = "fuzz_targets/ctrl.rs"
+test = false
+doc = false
+bench = false

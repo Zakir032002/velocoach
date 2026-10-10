@@ -4,3 +4,9 @@ xcuserdata/
 DerivedData/
 *.xcframework
 build/
+crates/vc-gatt/fuzz/artifacts/
+crates/vc-gatt/fuzz/target/
+# cargo-fuzz generated output
+crates/vc-gatt/fuzz/target/
+crates/vc-gatt/fuzz/artifacts/
+crates/vc-gatt/fuzz-*.log

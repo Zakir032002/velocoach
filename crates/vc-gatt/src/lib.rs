@@ -9,7 +9,6 @@
     clippy::indexing_slicing
 )]
 #![cfg_attr(test, allow(clippy::indexing_slicing))]
-
 pub mod cpm;
 pub mod csc;
 mod cursor;
@@ -17,11 +16,22 @@ pub mod error;
 pub mod feature;
 pub mod hrm;
 pub mod location;
+pub mod vcsim;
+pub use cpm::{CPM_WHEEL_TICKS_PER_S, Cpm, CpmWheel, decode_cpm, encode_cpm};
 pub use csc::{CrankData, Csc, CscWheel, decode_csc, encode_csc};
 pub use error::{DecodeError, EncodeError};
 pub use heapless;
 pub use hrm::{Contact, Hrm, RR_CAP, decode_hrm, encode_hrm};
 pub use location::{SensorLocation, decode_sensor_location, encode_sensor_location};
 
+pub use feature::{
+    CpFeature, CscFeature, decode_cp_feature, decode_csc_feature, encode_cp_feature,
+    encode_csc_feature,
+};
+
+pub use vcsim::{
+    Channel, Ctrl, FaultKind, Status, Telem, VCSIM_VERSION, decode_ctrl, decode_telem, encode_ctrl,
+    encode_telem,
+};
 /// Default ATT MTU (23) minus the 3-byte ATT header.
 pub const MAX_PAYLOAD: usize = 20;
