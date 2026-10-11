@@ -10,3 +10,4 @@ crates/vc-gatt/fuzz/target/
 crates/vc-gatt/fuzz/target/
 crates/vc-gatt/fuzz/artifacts/
 crates/vc-gatt/fuzz-*.log
+*.pdf
