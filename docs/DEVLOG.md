@@ -25,3 +25,14 @@
 - **Decision:** VC-SIM is strict (exact length, versioned) so accepted bytes re-encode identically
 - **Broke:** None
 - **Tomorrow:** vc-physio (W′ balance, quality state machine, cadence deriver)
+
+## Day 4 — 2026-10-12
+
+- Done: W′ balance exact + GoldenCheetah parity + Waterworth, quality state machine, cadence deriver
+- Measured: exact vs GC worst gap over 1 h = 38.917 J
+- Decision: readings cover the interval just ended; gaps > 10 s are zero-filled; negative or non-finite power counts as 0 W
+- Decision: first revolution after > 2.5 s quiet is a baseline
+- Decision: f64 retained; software cost on a single-precision-FPU MCU acknowledged
+- Broke: none
+- Tomorrow: decoupling + vc-sim HR kinetics
+

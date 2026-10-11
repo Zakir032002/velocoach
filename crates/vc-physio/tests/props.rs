@@ -57,4 +57,37 @@ proptest! {
 
         prop_assert!((one.balance_j() - many.balance_j()).abs() < 1e-6);
     }
+    /// Any start point, including just before both counters wrap, should
+/// reproduce the true cadence within 0.5 RPM.
+#[test]
+fn cadence_tracks_truth(
+    revs0 in any::<u16>(),
+    time0 in any::<u16>(),
+    rpm in 40.0f64..180.0,
+    drev in 1u16..=4,
+) {
+    let dt_ticks =
+        (f64::from(drev) * 60.0 * 1024.0 / rpm).round() as u16;
+
+    let dt_ns =
+        (f64::from(dt_ticks) / 1024.0 * 1e9) as u64;
+
+    prop_assume!(dt_ns <= 2_400_000_000);
+
+    let mut c = CadenceDeriver::new();
+    c.push(revs0, time0, 0);
+
+    let got = c.push(
+        revs0.wrapping_add(drev),
+        time0.wrapping_add(dt_ticks),
+        dt_ns,
+    );
+
+    match got {
+        CadenceUpdate::Rpm(r) => {
+            prop_assert!((r - rpm).abs() < 0.5, "{r} vs {rpm}");
+        }
+        other => prop_assert!(false, "unexpected {other:?}"),
+    }
+}
 }

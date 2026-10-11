@@ -9,6 +9,10 @@
     clippy::indexing_slicing
 )]
 #![allow(unused)]
+pub mod cadence;
+pub mod quality;
 pub mod wbal;
+pub use cadence::{COAST_AFTER_NS, CadenceDeriver, CadenceUpdate};
+pub use quality::{Change, Quality, QualityConfig, QualityTracker};
 pub use wbal::{GAP_ZERO_FILL_NS, WbalExact, WbalGc, WbalParams, WbalWaterworth, WprimeBalance};
 pub(crate) const NS_PER_S: f64 = 1e9;
