@@ -14,3 +14,14 @@
   1. The primary execution target is modern mobile hardware (iOS and Android devices), where 64-bit hardware FPUs are standard and instantaneous.
   2. Compiling for `thumbv7em-none-eabihf` verifies strict `#![no_std]` compliance and architectural portability.
   3. If targeted to resource-constrained microcontrollers (e.g. nRF52-class smart displays or sensor pods), the mathematical models can be made generic over `f32`, or `f64` can be retained at the acceptable cost of tens of microseconds per periodic update.
+
+## Day 5 — Core Engine, Safety & Workout State Machine
+
+### 1. Auto-Pause Speed Proxy Substitution
+- **Specification Rule**: Aki's auto-pause rule specifies cadence = 0 RPM and speed < 2 km/h for > 3 s.
+- **Hardware Constraint & Substitution**: There is no dedicated wheel-speed sensor in this rig. Missing CPM packets alone cannot indicate a rider has stopped (that could be a sensor dropout).
+- **Implementation**: The Engine substitutes "power Fresh and under 20 W, cranks stopped" for > 3 s (`auto_pause_ns`). While auto-paused, the workout active clock halts and only P1 directives (safety, dropout) remain active.
+
+### 2. Core Temperature Safety Rule
+- **Observation**: Aki's original safety rule includes a hard cutoff for core body temperature $T_{\text{core}} > 39.5\ ^\circ\text{C}$.
+- **Decision**: Documented but not implemented in `RedlineGate` because standard cycling BLE sensors (HRM, CPM) do not measure or transmit core body temperature telemetry.

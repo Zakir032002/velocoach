@@ -1,0 +1,22 @@
+[package]
+name = "vc-core"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[features]
+default = []
+# Standard-library helpers for tests and vc-cli only.
+testkit = []
+
+[dependencies]
+vc-gatt = { path = "../vc-gatt" }
+vc-physio = { path = "../vc-physio" }
+heapless = { workspace = true }
+libm = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+# Enables scripted-ride helpers for integration tests.
+vc-core = { path = ".", features = ["testkit"] }

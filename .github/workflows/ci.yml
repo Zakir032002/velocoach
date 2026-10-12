@@ -31,8 +31,8 @@ jobs:
       - name: Test workspace
         run: cargo test --workspace
 
-      - name: Check Cortex-M no_std build
-        run: cargo build -p vc-gatt -p vc-physio --target thumbv7em-none-eabihf
+      - name: no_std build for a Cortex-M4F (S8)
+        run: cargo build -p vc-gatt -p vc-physio -p vc-core --target thumbv7em-none-eabihf
 
   fuzz:
     name: Fuzz smoke tests

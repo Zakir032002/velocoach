@@ -34,5 +34,15 @@
 - Decision: first revolution after > 2.5 s quiet is a baseline
 - Decision: f64 retained; software cost on a single-precision-FPU MCU acknowledged
 - Broke: none
-- Tomorrow: decoupling + vc-sim HR kinetics
+- Tomorrow: vc-core no_std engine, eight directives, workout progression, S10 zero allocations
+
+## Day 5 — 2026-10-12 (v-final plan)
+
+- Done: vc-core no_std (config with Aki's names + profile table, 3-s smoothing, safety gate, workout + auto-pause, eight directives, testkit), table tests, engine tests, alloc test, thumbv7em CI
+- Measured: test count 29; directive timings as in the tables (surge 55/60 s, W′ 106.75 s, safety 122 s)
+- Decision: auto-pause uses "power under 20 W, cranks stopped" because there is no wheel speed
+- Decision: CADENCE_LOW is not a power ask (dir 0), so the observer will not score it on power
+- Decision: Aki's Tcore > 39.5 C rule is documented, not implemented (no sensor)
+- Broke: none
+- Tomorrow: Policy Engine, phrase bank, lint, S9 proptests, golden format
 

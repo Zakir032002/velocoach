@@ -55,14 +55,14 @@ impl Channel {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FaultKind {
-    Dropout = 1,
-    Garbage = 2,
-    Disconnect = 3,
-    Coast = 4,
-    HrRedline = 5,
+    Dropout = 1,    //loss of data
+    Garbage = 2,    //data is being recieved but corrupted or malformed etc
+    Disconnect = 3, //the ble connection is completly severd
+    Coast = 4,      // rider has stopped, and powermeter sends 0
+    HrRedline = 5,  //exceeded safe limit
 
     /// param = the rider's true W′ in units of 100 J.
-    WprimeMismatch = 6,
+    WprimeMismatch = 6, //calculatuion error regarding w;prime represents their finite anaerobic energy capacity
 }
 
 impl FaultKind {
@@ -81,7 +81,7 @@ impl FaultKind {
         }
     }
 }
-
+//We've identified the channels and faults. Now we need a way to hold all the information belonging to a report or command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Status {
     pub seq: u16,
