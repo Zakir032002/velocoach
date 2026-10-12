@@ -46,3 +46,13 @@
 - Broke: none
 - Tomorrow: Policy Engine, phrase bank, lint, S9 proptests, golden format
 
+## Day 6 — 2026-10-12 (v-final plan)
+
+- Done: Policy Engine (staleness, P1 first and interrupting, profile mute, cooldown from clip end, observer window, Coach round-robin), phrase bank (16) + earcons, lint strict/terse, S9 properties, golden format, vc-cli golden stub with 3 rides
+- Measured: tests 46; proptest cases 512 + 512 + 24; golden logs surge_wprime 3 / redline_rolling 2 / dropout 1 decisions
+- Decision: safety-critical behaviour is code in decide(), not configuration, so no tuner can reach it
+- Decision: cooldown and observer window run from the clip's real end; the window only binds once cooldown nears 15 s
+- Decision: "Soft-pedal" hyphenated as Aki's verb; four surge recordings, one per lead (5-8 s)
+- Broke: none
+- Tomorrow: vc-gatt RIDER_INPUT + CUE_PLAYED, vc-sim scenarios and personas, vc-cli sim, golden logs from scenarios, 10-min fuzz
+

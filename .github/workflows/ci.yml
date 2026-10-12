@@ -31,6 +31,9 @@ jobs:
       - name: Test workspace
         run: cargo test --workspace
 
+      - name: Golden logs (S5)
+        run: cargo run -q -p vc-cli -- golden --check
+
       - name: no_std build for a Cortex-M4F (S8)
         run: cargo build -p vc-gatt -p vc-physio -p vc-core --target thumbv7em-none-eabihf
 

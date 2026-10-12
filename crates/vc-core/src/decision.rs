@@ -4,17 +4,26 @@ use crate::directive::{AkiClass, Directive, Priority, SurgePhase};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CueDecision {
-    /// Per-ride counter: cue ID in CUE_PLAYED and the ledger.
     pub id: u32,
-    pub directive: Directive,
-    pub priority: Priority,
-    pub aki_class: AkiClass,
-    /// +1 asks for more power, -1 for less, 0 is not a power ask.
+    pub directive: crate::directive::Directive,
+    pub priority: crate::directive::Priority,
+    pub aki_class: crate::directive::AkiClass,
     pub dir: i8,
-    /// Size of the requested power change in watts.
     pub delta_star_w: f64,
-    /// Surge countdown or "go now".
-    pub surge: Option<SurgePhase>,
-    /// Timestamp of the call that produced this decision.
+    pub surge: Option<crate::directive::SurgePhase>,
     pub decided_ns: u64,
+
+    pub arm: Arm,
+    pub phrase: crate::phrase::PhraseId,
+    pub earcon: Option<crate::phrase::Earcon>,
+    pub lead_ms: u16,
+    pub interrupt: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Arm {
+    None,
+    Direct,
+    Autonomy,
+    Sham,
 }

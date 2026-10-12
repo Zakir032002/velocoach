@@ -25,3 +25,18 @@
 ### 2. Core Temperature Safety Rule
 - **Observation**: Aki's original safety rule includes a hard cutoff for core body temperature $T_{\text{core}} > 39.5\ ^\circ\text{C}$.
 - **Decision**: Documented but not implemented in `RedlineGate` because standard cycling BLE sensors (HRM, CPM) do not measure or transmit core body temperature telemetry.
+
+## Day 6 — Policy Engine, Phrasing & Golden Logs
+
+### 1. Safety-Critical Logic in Code, Not Configuration
+- **Design Principle**: "P1 is never muted" and "P1 may interrupt P2/P3 clips" are hardcoded branches in `Policy::decide`, not configurable struct fields. No profile or tuner can override life-safety alerts.
+- **Tunable vs Invariable**: Only global cooldown (clamped to 15–45 s), surge lead (5–8 s), optional P3 earcons, and default P2 phrasing arm are exposed to the tuner.
+
+### 2. Clip End Alignment: Cooldown & Observer Window
+- **Audio Timing**: Both cooldown and observer window measure from the true end of playback. Until `on_audio_finished` fires, the Policy projects completion via `est_phrase_ns` (2.5 s).
+- **Window Interlock**: At the default 20 s cooldown and 15 s window, cooldown outlasts the window. If the tuner lowers cooldown to 15 s, the window guarantees a P2 cue is never graded while another cue plays.
+
+### 3. Phrasing Conventions & Lint Rules
+- **Verb-First & Hyphenation**: "Soft-pedal" is explicitly hyphenated to serve as an imperative verb compound, satisfying the strict lint requirement for a verb as the initial token.
+- **Surge Countdown Variants**: Distinct recordings exist for leads 5, 6, 7, and 8 seconds (`SRG5`–`SRG8`) so the spoken number matches `promptSurgeCountdownSec`.
+- **W′ Re-arm Interlock**: In continuous hard efforts, the 20 s cooldown blocks a second $W'$ cue before hysteresis re-arms.

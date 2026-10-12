@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*"]
+members = ["crates/*", "tools/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -11,6 +11,7 @@ license = "MIT OR Apache-2.0"
 heapless = "0.9.3"
 proptest = "1"
 libm = "0.2" # the purpose of this is to grant us mathematical functions like exp in the no_std 
+anyhow = "1"
 
 [profile.dev]
 debug = "line-tables-only"

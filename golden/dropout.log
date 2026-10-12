@@ -1,0 +1,3 @@
+# velocoach golden v1
+#     t_ms   id prio aki directive            arm       phrase earcon       dir dw_x10 int
+     38000    1 P1   P0  SENSOR_DROPOUT       none      DROP   ear_p0         0      0 -
