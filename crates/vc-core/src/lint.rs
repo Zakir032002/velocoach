@@ -196,17 +196,26 @@ mod tests {
     }
 
     #[test]
-    fn lint_rejects_digits_and_unknown_words() {
-        assert_eq!(lint("Ease off 20 watts", Strict), Err(Digits));
-        assert_eq!(lint("Ease off magnificently", Strict), Err(UnknownWord(2)));
-    }
-
-    #[test]
-    fn lint_requires_verb_first_and_limits_number_runs() {
-        assert_eq!(lint("Your power is high", Strict), Err(NotVerbFirst));
+    fn lint_catches_each_kind_of_violation() {
+        // Made-up phrases only: nothing here grades anyone's published examples.
+        assert_eq!(lint("Hold 300 watts", Strict), Err(Digits));
         assert_eq!(
-            lint("Ease off twenty watts thirty", Strict),
+            lint("Cadence is too low, raise it now", Strict),
+            Err(NotVerbFirst)
+        );
+        assert_eq!(
+            lint("Hold two hundred watts for ten seconds now", Strict),
             Err(TooManyNumbers(2))
         );
+        assert_eq!(lint("Ease off", Strict), Err(Syllables(2)));
+        assert_eq!(
+            lint("Ease off now, your reserve is at twenty", Terse),
+            Err(Syllables(10))
+        );
+        assert_eq!(
+            lint("Ease off now, magnificent rider", Strict),
+            Err(UnknownWord(3))
+        );
+        assert_eq!(lint(" ?! ", Strict), Err(Empty));
     }
 }
