@@ -12,6 +12,7 @@ pub const VCSIM_VERSION: u8 = 1;
 const OP_STAMP: u8 = 0x01; // "I sent a packet at this time"
 const OP_PONG: u8 = 0x02; // "Ping reply for clock sync"
 const OP_STATUS: u8 = 0x03; // "Simulator health check"
+const OP_RIDER_INPUT: u8 = 0x04;
 
 // The CTRL Opcodes (iPhone -> Android)
 const OP_PING: u8 = 0x10; // "Clock sync check"
@@ -21,6 +22,13 @@ const OP_STOP: u8 = 0x22; // "Stop pedaling"
 const OP_FAULT: u8 = 0x30; // "Break something on purpose"
 const OP_CLEAR: u8 = 0x31; // "Fix the broken sensor"
 const OP_RATE: u8 = 0x40; // "Change send speed (Hz)"
+const OP_CUE_PLAYED: u8 = 0x50;
+
+/// Persona codes: 0 = scenario default, 1–4 = named personas.
+pub const PERSONA_MAX: u8 = 4;
+
+/// Arm codes: 0 none, 1 direct, 2 autonomy, 3 sham (never played).
+pub const ARM_MAX: u8 = 3;
 
 //which sensor characteristic a message refers to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -114,6 +122,13 @@ pub enum Telem {
     },
 
     Status(Status),
+
+    /// Human mode: slider effort, timestamped on the iQOO clock.
+    RiderInput {
+        seq: u16,
+        t_ns: u64,
+        effort_permille: i16,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -125,7 +140,20 @@ pub enum Ctrl {
 
     Load {
         scenario: u8,
+        persona: u8,
         seed: u32,
+        human: bool,
+    },
+
+    /// A cue is scheduled: what it asks and when its audio plays.
+    CuePlayed {
+        cue_id: u32,
+        kind: u8,
+        dir: i8,
+        delta_w: i16,
+        arm: u8,
+        starts_in_ms: u16,
+        dur_ms: u16,
     },
 
     Start,
@@ -191,6 +219,12 @@ pub fn decode_telem(b: &[u8]) -> Result<Telem, DecodeError> {
             notify_errs: c.u16_le()?,
         }),
 
+        OP_RIDER_INPUT => Telem::RiderInput {
+            seq: c.u16_le()?,
+            t_ns: c.u64_le()?,
+            effort_permille: c.i16_le()?,
+        },
+
         op => return Err(DecodeError::BadOpcode(op)),
     };
 
@@ -238,6 +272,17 @@ pub fn encode_telem(m: &Telem, out: &mut [u8; MAX_PAYLOAD]) -> Result<usize, Enc
             w.u16_le(s.q_drops)?;
             w.u16_le(s.notify_errs)?;
         }
+
+        Telem::RiderInput {
+            seq,
+            t_ns,
+            effort_permille,
+        } => {
+            w.u8(OP_RIDER_INPUT)?;
+            w.u16_le(seq)?;
+            w.u64_le(t_ns)?;
+            w.i16_le(effort_permille)?;
+        }
     }
 
     Ok(w.written())
@@ -256,10 +301,79 @@ pub fn decode_ctrl(b: &[u8]) -> Result<Ctrl, DecodeError> {
             t_client_ns: c.u64_le()?,
         },
 
-        OP_LOAD => Ctrl::Load {
-            scenario: c.u8()?,
-            seed: c.u32_le()?,
-        },
+        OP_LOAD => {
+            let scenario = c.u8()?;
+            let persona = c.u8()?;
+
+            if persona > PERSONA_MAX {
+                return Err(DecodeError::BadValue {
+                    field: "load.persona",
+                    value: persona,
+                });
+            }
+
+            let seed = c.u32_le()?;
+
+            let human = match c.u8()? {
+                0 => false,
+                1 => true,
+                value => {
+                    return Err(DecodeError::BadValue {
+                        field: "load.human",
+                        value,
+                    });
+                }
+            };
+
+            Ctrl::Load {
+                scenario,
+                persona,
+                seed,
+                human,
+            }
+        }
+
+        OP_CUE_PLAYED => {
+            let cue_id = c.u32_le()?;
+            let kind = c.u8()?;
+
+            if kind == 0 {
+                return Err(DecodeError::BadValue {
+                    field: "cue.kind",
+                    value: 0,
+                });
+            }
+
+            let dir_byte = c.u8()?;
+            let dir = dir_byte as i8;
+
+            if !(-1..=1).contains(&dir) {
+                return Err(DecodeError::BadValue {
+                    field: "cue.dir",
+                    value: dir_byte,
+                });
+            }
+
+            let delta_w = c.i16_le()?;
+            let arm = c.u8()?;
+
+            if arm > ARM_MAX {
+                return Err(DecodeError::BadValue {
+                    field: "cue.arm",
+                    value: arm,
+                });
+            }
+
+            Ctrl::CuePlayed {
+                cue_id,
+                kind,
+                dir,
+                delta_w,
+                arm,
+                starts_in_ms: c.u16_le()?,
+                dur_ms: c.u16_le()?,
+            }
+        }
 
         OP_START => Ctrl::Start,
         OP_STOP => Ctrl::Stop,
@@ -301,10 +415,36 @@ pub fn encode_ctrl(m: &Ctrl, out: &mut [u8; MAX_PAYLOAD]) -> Result<usize, Encod
             w.u64_le(t_client_ns)?;
         }
 
-        Ctrl::Load { scenario, seed } => {
+        Ctrl::Load {
+            scenario,
+            persona,
+            seed,
+            human,
+        } => {
             w.u8(OP_LOAD)?;
             w.u8(scenario)?;
+            w.u8(persona)?;
             w.u32_le(seed)?;
+            w.u8(u8::from(human))?;
+        }
+
+        Ctrl::CuePlayed {
+            cue_id,
+            kind,
+            dir,
+            delta_w,
+            arm,
+            starts_in_ms,
+            dur_ms,
+        } => {
+            w.u8(OP_CUE_PLAYED)?;
+            w.u32_le(cue_id)?;
+            w.u8(kind)?;
+            w.u8(dir as u8)?;
+            w.i16_le(delta_w)?;
+            w.u8(arm)?;
+            w.u16_le(starts_in_ms)?;
+            w.u16_le(dur_ms)?;
         }
 
         Ctrl::Start => w.u8(OP_START)?,
@@ -336,4 +476,127 @@ pub fn encode_ctrl(m: &Ctrl, out: &mut [u8; MAX_PAYLOAD]) -> Result<usize, Encod
     }
 
     Ok(w.written())
+}
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used)]
+mod tests {
+    use super::*;
+
+    fn telem_bytes(m: &Telem) -> std::vec::Vec<u8> {
+        let mut buf = [0u8; MAX_PAYLOAD];
+        let n = encode_telem(m, &mut buf).unwrap();
+        buf[..n].to_vec()
+    }
+
+    fn ctrl_bytes(m: &Ctrl) -> std::vec::Vec<u8> {
+        let mut buf = [0u8; MAX_PAYLOAD];
+        let n = encode_ctrl(m, &mut buf).unwrap();
+        buf[..n].to_vec()
+    }
+
+    #[test]
+    fn rider_input_bytes_exact() {
+        let m = Telem::RiderInput {
+            seq: 1,
+            t_ns: 0x0102_0304_0506_0708,
+            effort_permille: 750,
+        };
+
+        let want = [
+            0x01, 0x04, 0x01, 0x00, 0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0xEE, 0x02,
+        ];
+
+        assert_eq!(telem_bytes(&m), want);
+        assert_eq!(decode_telem(&want), Ok(m));
+    }
+
+    #[test]
+    fn cue_played_bytes_exact() {
+        let m = Ctrl::CuePlayed {
+            cue_id: 7,
+            kind: 1,
+            dir: -1,
+            delta_w: 150,
+            arm: 1,
+            starts_in_ms: 50,
+            dur_ms: 2_400,
+        };
+
+        let want = [
+            0x01, 0x50, 0x07, 0x00, 0x00, 0x00, 0x01, 0xFF, 0x96, 0x00, 0x01, 0x32, 0x00, 0x60,
+            0x09,
+        ];
+
+        assert_eq!(ctrl_bytes(&m), want);
+        assert_eq!(decode_ctrl(&want), Ok(m));
+    }
+
+    #[test]
+    fn load_v2_bytes_exact() {
+        let m = Ctrl::Load {
+            scenario: 1,
+            persona: 2,
+            seed: 42,
+            human: false,
+        };
+
+        let want = [0x01, 0x20, 0x01, 0x02, 0x2A, 0x00, 0x00, 0x00, 0x00];
+
+        assert_eq!(ctrl_bytes(&m), want);
+        assert_eq!(decode_ctrl(&want), Ok(m));
+    }
+
+    #[test]
+    fn new_messages_reject_values_outside_their_sets() {
+        use DecodeError::*;
+
+        let mut cue = [
+            0x01, 0x50, 0x07, 0, 0, 0, 0x01, 0x02, 0x96, 0x00, 0x01, 0x32, 0x00, 0x60, 0x09,
+        ];
+
+        assert_eq!(
+            decode_ctrl(&cue),
+            Err(BadValue {
+                field: "cue.dir",
+                value: 2
+            })
+        );
+
+        cue[7] = 0xFF;
+        cue[10] = 4;
+        assert_eq!(
+            decode_ctrl(&cue),
+            Err(BadValue {
+                field: "cue.arm",
+                value: 4
+            })
+        );
+
+        cue[10] = 1;
+        cue[6] = 0;
+        assert_eq!(
+            decode_ctrl(&cue),
+            Err(BadValue {
+                field: "cue.kind",
+                value: 0
+            })
+        );
+
+        assert_eq!(
+            decode_ctrl(&[0x01, 0x20, 1, 9, 0, 0, 0, 0, 0]),
+            Err(BadValue {
+                field: "load.persona",
+                value: 9
+            })
+        );
+
+        assert_eq!(
+            decode_ctrl(&[0x01, 0x20, 1, 0, 0, 0, 0, 0, 2]),
+            Err(BadValue {
+                field: "load.human",
+                value: 2
+            })
+        );
+    }
 }

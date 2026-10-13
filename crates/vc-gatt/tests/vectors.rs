@@ -586,6 +586,16 @@ fn vcsim_all_message_sizes_match_spec() {
     assert_eq!(telem_bytes(&Telem::Status(status)).len(), 12);
 
     assert_eq!(
+        telem_bytes(&Telem::RiderInput {
+            seq: 0,
+            t_ns: 0,
+            effort_permille: 0,
+        })
+        .len(),
+        14
+    );
+
+    assert_eq!(
         ctrl_bytes(&Ctrl::Ping {
             ping_id: 0,
             t_client_ns: 0,
@@ -597,10 +607,26 @@ fn vcsim_all_message_sizes_match_spec() {
     assert_eq!(
         ctrl_bytes(&Ctrl::Load {
             scenario: 0,
+            persona: 0,
             seed: 0,
+            human: false,
         })
         .len(),
-        7
+        9
+    );
+
+    assert_eq!(
+        ctrl_bytes(&Ctrl::CuePlayed {
+            cue_id: 0,
+            kind: 1,
+            dir: 0,
+            delta_w: 0,
+            arm: 0,
+            starts_in_ms: 0,
+            dur_ms: 0,
+        })
+        .len(),
+        15
     );
 
     assert_eq!(ctrl_bytes(&Ctrl::Start).len(), 2);

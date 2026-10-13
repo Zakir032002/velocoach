@@ -35,7 +35,7 @@ jobs:
         run: cargo run -q -p vc-cli -- golden --check
 
       - name: no_std build for a Cortex-M4F (S8)
-        run: cargo build -p vc-gatt -p vc-physio -p vc-core --target thumbv7em-none-eabihf
+        run: cargo build -p vc-gatt -p vc-physio -p vc-core -p vc-sim --target thumbv7em-none-eabihf
 
   fuzz:
     name: Fuzz smoke tests
@@ -54,11 +54,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: crates/vc-gatt/fuzz
+          workspaces: |
+            crates/vc-gatt/fuzz
+            crates/vc-sim/fuzz
 
       - name: 60 s per target
-        working-directory: crates/vc-gatt
         run: |
           for t in hrm cpm csc telem ctrl; do
-            cargo fuzz run "$t" --target x86_64-unknown-linux-gnu -- -max_total_time=60
+            (cd crates/vc-gatt && cargo fuzz run "$t" --target x86_64-unknown-linux-gnu -- -max_total_time=60)
           done
+          (cd crates/vc-sim && cargo fuzz run vcsim --target x86_64-unknown-linux-gnu -- -max_total_time=60)

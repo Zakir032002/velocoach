@@ -324,7 +324,10 @@ name = "vc-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "heapless",
  "vc-core",
+ "vc-gatt",
+ "vc-sim",
 ]
 
 [[package]]
@@ -353,6 +356,16 @@ version = "0.1.0"
 dependencies = [
  "libm",
  "proptest",
+]
+
+[[package]]
+name = "vc-sim"
+version = "0.1.0"
+dependencies = [
+ "heapless",
+ "libm",
+ "vc-core",
+ "vc-gatt",
 ]
 
 [[package]]

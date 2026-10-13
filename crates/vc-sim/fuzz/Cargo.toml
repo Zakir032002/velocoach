@@ -1,0 +1,23 @@
+[package]
+name = "vc-sim-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+heapless = "0.9.3"
+vc-sim = { path = ".." }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "vcsim"
+path = "fuzz_targets/vcsim.rs"
+test = false
+doc = false
+bench = false

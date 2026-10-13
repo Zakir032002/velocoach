@@ -17,6 +17,7 @@ pub mod phrase;
 pub mod policy;
 pub mod safety;
 pub mod smooth;
+pub mod study;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod workout;

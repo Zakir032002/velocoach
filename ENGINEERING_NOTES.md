@@ -40,3 +40,18 @@
 - **Verb-First & Hyphenation**: "Soft-pedal" is explicitly hyphenated to serve as an imperative verb compound, satisfying the strict lint requirement for a verb as the initial token.
 - **Surge Countdown Variants**: Distinct recordings exist for leads 5, 6, 7, and 8 seconds (`SRG5`–`SRG8`) so the spoken number matches `promptSurgeCountdownSec`.
 - **W′ Re-arm Interlock**: In continuous hard efforts, the 20 s cooldown blocks a second $W'$ cue before hysteresis re-arms.
+
+## Day 7 — Controllable Virtual Rider, Scenarios & Fuzzing
+
+### 1. Protocol Evolution & Payload Compactness
+- **LOAD v2**: Refactored to 9 bytes containing `scenario (u8)`, `persona (u8)`, `seed (u32)`, and `human (bool)`. The decoder enforces `persona <= PERSONA_MAX (4)` and strict boolean mapping for `human`.
+- **Rider Input & Cue Played**: `RIDER_INPUT` (14 B) timestamps slider efforts on the mobile clock, and `CUE_PLAYED` (15 B) feeds cue audio playback schedules to the virtual rider.
+
+### 2. Reproducibility & Independent PRNG Streams
+- **Seeded Randomness**: Random number generation is consolidated entirely in `vc_core::study::Pcg32`.
+- **Stream Independence**: Rider physiological noise and cue reaction drawings use separate streams (`CUE_STREAM_BASE | cue_id`), guaranteeing that injecting faults or reacting to cues never shifts the rider's physiological noise sequence.
+
+### 3. 4 Hz Virtual Rider & Scenario Harness
+- **Temporal Resolution**: The virtual rider steps every 250 ms (4 Hz) to allow simulated compliance within $\pm 0.5$ s of audio completion.
+- **Headless Clock**: The `vc-cli` test harness drives the entire closed loop on a virtual clock without radio or sleeping, running a 20-minute workout simulation in tens of milliseconds.
+

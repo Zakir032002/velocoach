@@ -177,6 +177,13 @@ fn arb_telem() -> impl Strategy<Value = Telem> {
                     notify_errs,
                 })
             },),
+        (any::<u16>(), any::<u64>(), any::<i16>()).prop_map(|(seq, t_ns, effort_permille)| {
+            Telem::RiderInput {
+                seq,
+                t_ns,
+                effort_permille,
+            }
+        }),
     ]
 }
 
@@ -186,7 +193,34 @@ fn arb_ctrl() -> impl Strategy<Value = Ctrl> {
             ping_id,
             t_client_ns,
         }),
-        (any::<u8>(), any::<u32>()).prop_map(|(scenario, seed)| Ctrl::Load { scenario, seed }),
+        (any::<u8>(), 0u8..=4, any::<u32>(), any::<bool>()).prop_map(
+            |(scenario, persona, seed, human)| Ctrl::Load {
+                scenario,
+                persona,
+                seed,
+                human,
+            }
+        ),
+        (
+            any::<u32>(),
+            1u8..=255,
+            -1i8..=1,
+            any::<i16>(),
+            0u8..=3,
+            any::<u16>(),
+            any::<u16>(),
+        )
+            .prop_map(|(cue_id, kind, dir, delta_w, arm, starts_in_ms, dur_ms)| {
+                Ctrl::CuePlayed {
+                    cue_id,
+                    kind,
+                    dir,
+                    delta_w,
+                    arm,
+                    starts_in_ms,
+                    dur_ms,
+                }
+            },),
         Just(Ctrl::Start),
         Just(Ctrl::Stop),
         (

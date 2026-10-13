@@ -8,3 +8,6 @@ publish = false
 [dependencies]
 vc-core = { path = "../../crates/vc-core", features = ["testkit"] }
 anyhow = { workspace = true }
+vc-sim = { path = "../../crates/vc-sim" }
+vc-gatt = { path = "../../crates/vc-gatt" }
+heapless = { workspace = true }

@@ -56,3 +56,13 @@
 - Broke: none
 - Tomorrow: vc-gatt RIDER_INPUT + CUE_PLAYED, vc-sim scenarios and personas, vc-cli sim, golden logs from scenarios, 10-min fuzz
 
+## Day 7 — 2026-10-13 (v-final plan)
+
+- Done: vc-gatt RIDER_INPUT (14 B), CUE_PLAYED (15 B), LOAD v2 (9 B); Pcg32 in vc-core::study; vc-sim (4 Hz rider, six scenarios, Dana/Sam/Ned/Calib, spontaneous correction, ground truth); vc-cli sim; golden logs x5; vcsim fuzz target
+- Measured: headless 20-min ride in 45 ms; personas over 4000 draws: Dana 90%/90% (1.8s), Sam 30%/80% (2.5s), Ned 50%/50% (2.5s), Calib 70%/70% (3.0s); fuzz 35.1M executions, crashes 0
+- Decision: LOAD changed to the plan's layout (persona + human); other Day 3 layouts kept, README table updated
+- Decision: one PRNG (Pcg32 in vc-core::study), moved forward from Day 8 so the simulator can share it
+- Decision: the rider steps at 4 Hz so a response is visible within 250 ms (E1 needs +/-0.5 s)
+- Broke: none
+- Tomorrow: vc-efficacy types, Study allocator + policy_hash, vc-ffi, build scripts, both shells linking
+

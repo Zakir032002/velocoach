@@ -30,8 +30,8 @@ pub use feature::{
 };
 
 pub use vcsim::{
-    Channel, Ctrl, FaultKind, Status, Telem, VCSIM_VERSION, decode_ctrl, decode_telem, encode_ctrl,
-    encode_telem,
+    ARM_MAX, Channel, Ctrl, FaultKind, PERSONA_MAX, Status, Telem, VCSIM_VERSION, decode_ctrl,
+    decode_telem, encode_ctrl, encode_telem,
 };
 /// Default ATT MTU (23) minus the 3-byte ATT header.
 pub const MAX_PAYLOAD: usize = 20;
