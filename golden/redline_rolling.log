@@ -1,4 +1,0 @@
-# velocoach golden v1
-#     t_ms   id prio aki directive            arm       phrase earcon       dir dw_x10 int
-     50000    1 P3   P4  CARDIAC_DRIFT        none      HRD    -             -1    100 -
-    122000    2 P1   P0  SAFETY_HR            none      SAF    ear_p0        -1      0 -

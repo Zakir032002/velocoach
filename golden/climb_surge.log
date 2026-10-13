@@ -1,0 +1,9 @@
+# velocoach golden v1
+#     t_ms   id prio aki directive            arm       phrase earcon       dir dw_x10 int
+    295000    1 P1   P1  SURGE_PENDING        none      SRG5   ear_p1         1      0 -
+    300000    2 P1   P1  SURGE_PENDING        none      GO     ear_p1         1   1719 -
+    529500    3 P2   P2  WPRIME_LOW           direct    WPL_D  ear_p2        -1    695 -
+    540000    4 P1   P0  SAFETY_HR            none      SAF    ear_p0        -1      0 -
+    715000    5 P1   P1  SURGE_PENDING        none      SRG5   ear_p1         1      0 -
+    720000    6 P1   P1  SURGE_PENDING        none      GO     ear_p1         1   1911 -
+    869750    7 P2   P2  WPRIME_LOW           autonomy  WPL_A  ear_p2        -1    722 -
