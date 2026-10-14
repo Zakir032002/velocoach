@@ -10,6 +10,10 @@ use crate::directive::{Directive, Priority, SurgePhase};
 
 const PENDING: usize = 4;
 const P1_LOG: usize = 8;
+const EFFORTS: usize = 64;
+pub const MOVE_FRACTION: f64 = 0.05;
+/// Below this baseline (in thousandths of CP), 5 % would be noise: use this floor.
+const MIN_BASELINE_PERMILLE: f64 = 100.0;
 
 pub const CATALOGUE: Catalogue<'static> = Catalogue {
     p2: &[
@@ -78,7 +82,10 @@ pub struct Hub {
     p1_flag: bool,
     interrupted_flag: bool,
     grade: Option<f64>,
-    last_outcome: Option<CueOutcome>,
+    last: Option<Observed>,
+    efforts: [(u64, i16); EFFORTS],
+    e_next: usize,
+    e_len: usize,
 }
 
 impl Default for Hub {
@@ -96,7 +103,10 @@ impl Default for Hub {
             p1_flag: false,
             interrupted_flag: false,
             grade: None,
-            last_outcome: None,
+            last: None,
+            efforts: [(0, 0); EFFORTS],
+            e_next: 0,
+            e_len: 0,
         }
     }
 }
@@ -112,7 +122,12 @@ impl Hub {
     }
 
     pub fn last_outcome(&self) -> Option<CueOutcome> {
-        self.last_outcome
+        self.last.map(|o| o.outcome)
+    }
+
+    /// The last observed cue with its context (directive, arm) for the badge.
+    pub fn last_observed(&self) -> Option<Observed> {
+        self.last
     }
 
     /// Mac and tests only: the true road grade from the simulator.
@@ -125,11 +140,37 @@ impl Hub {
         self.ring.push(t_ns, watts);
     }
 
+    pub fn on_rider_input(&mut self, t_ns: u64, effort_permille: i16) {
+        self.efforts[self.e_next % EFFORTS] = (t_ns, effort_permille);
+        self.e_next += 1;
+        self.e_len = (self.e_len + 1).min(EFFORTS);
+    }
+
+    /// The first slider move of >= 5 % in the asked direction after `onset`.
+    fn rider_move(&self, onset_ns: u64, dir: i8) -> Option<u64> {
+        let recent = || (0..self.e_len).map(|k| self.efforts[(self.e_next - 1 - k) % EFFORTS]); // newest first
+        let baseline = recent()
+            .filter(|(t, _)| *t <= onset_ns)
+            .map(|(_, e)| f64::from(e))
+            .next()?;
+        let need = MOVE_FRACTION * baseline.max(MIN_BASELINE_PERMILLE);
+        let mut after: heapless::Vec<(u64, i16), EFFORTS> =
+            recent().filter(|(t, _)| *t > onset_ns).collect();
+        after.sort_unstable_by_key(|(t, _)| *t);
+        after
+            .iter()
+            .find(|(_, e)| f64::from(dir) * (f64::from(*e) - baseline) >= need)
+            .map(|(t, _)| *t)
+    }
+
     pub fn on_decision(&mut self, d: &CueDecision, profile: u8, lead_ns: u64, est_phrase_ns: u64) {
         if d.priority == Priority::P1 && !observed(d) {
             self.p1_times[self.p1_next % P1_LOG] = d.decided_ns;
             self.p1_next += 1;
-            self.p1_flag = true;
+            // Only a window that is already open can be confounded by it now; a window
+            // not yet open replays p1_times from its onset (a P1 before the onset is not a
+            // confounder, so it must not leak into the next window through this flag).
+            self.p1_flag = self.observer.is_open();
         }
         if !observed(d) {
             return;
@@ -194,6 +235,7 @@ impl Hub {
             }
         }
         let (ev, draw) = self.open_event?;
+        let rider_move_ns = self.rider_move(ev.t_onset_ns, ev.dir);
         let ctx = ObsContext {
             ring: &self.ring,
             power_fresh: now.power_fresh && !late_quality,
@@ -203,7 +245,7 @@ impl Hub {
             p1_fired: core::mem::take(&mut self.p1_flag),
             overlap: false, // the Policy Engine allows no second P2/P3 cue inside a window
             audio_interrupted: core::mem::take(&mut self.interrupted_flag),
-            rider_move_ns: None, // human mode: Day 15
+            rider_move_ns,
         };
         let o = self.observer.update(now.t_ns, &ctx)?;
         self.open_event = None;
@@ -224,12 +266,13 @@ impl Hub {
 
     fn finish(&mut self, ev: &CueEvent, o: CueOutcome, draw_index: Option<u32>) -> Observed {
         self.ledger.record(ev, &o);
-        self.last_outcome = Some(o);
-        Observed {
+        let observed = Observed {
             event: *ev,
             outcome: o,
             draw_index,
-        }
+        };
+        self.last = Some(observed);
+        observed
     }
 }
 

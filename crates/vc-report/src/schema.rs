@@ -74,6 +74,12 @@ pub struct CueLine {
     pub confound_flags: Vec<String>,
     pub effect_max_w: f64,
     pub dropped_before: u32,
+    /// The latency chain of the packet that triggered the cue (phone clock). The
+    /// schema stays velocoach.irp.v1: these are new optional fields.
+    pub t0_ns: Option<u64>,
+    pub t1_ns: Option<u64>,
+    pub t2_ns: Option<u64>,
+    pub t3_ns: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -176,6 +182,7 @@ impl Writer {
                 draw_index,
                 onset_source,
                 sync_bound_us,
+                chain,
                 dropped_before,
             } => {
                 let randomised = e.propensity_q16 != NOT_RANDOMISED_Q16;
@@ -233,6 +240,10 @@ impl Writer {
                         .collect(),
                     effect_max_w: o.effect_max_w,
                     dropped_before,
+                    t0_ns: chain.t0_ns,
+                    t1_ns: chain.t1_ns,
+                    t2_ns: chain.t2_ns,
+                    t3_ns: chain.t3_ns,
                 })
             }
             LedgerRecord::TunerChange {

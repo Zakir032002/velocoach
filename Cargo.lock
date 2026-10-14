@@ -1079,8 +1079,10 @@ dependencies = [
  "anyhow",
  "heapless",
  "vc-core",
+ "vc-efficacy",
  "vc-gatt",
  "vc-harness",
+ "vc-physio",
  "vc-report",
  "vc-sim",
 ]

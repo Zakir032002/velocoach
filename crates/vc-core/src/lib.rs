@@ -7,6 +7,8 @@
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(unused)]
 pub mod capture;
+pub mod chain;
+pub mod clock;
 pub mod config;
 pub mod decision;
 pub mod directive;

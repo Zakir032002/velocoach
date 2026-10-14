@@ -49,6 +49,18 @@ pub enum Record<'a> {
         cue_id: u32,
         reason: AudioFailure,
     },
+    /// A PING was made (Day 15): it changes the clock-sync state.
+    Ping {
+        t_ns: u64,
+    },
+    /// A (re)connection: clock samples and packet counters restart.
+    ResetLink,
+    /// The platform scheduled a clip: T2 and T3.
+    Scheduled {
+        cue_id: u32,
+        t2_ns: u64,
+        t3_ns: u64,
+    },
     /// The phone's decision, for comparison. Never fed to the Engine.
     Decision {
         cue_id: u32,
@@ -235,6 +247,21 @@ pub fn encode(rec: &Record<'_>, out: &mut [u8]) -> Option<usize> {
             w.u64(decided_ns)?;
             9
         }
+        Record::Ping { t_ns } => {
+            w.u64(t_ns)?;
+            10
+        }
+        Record::ResetLink => 11,
+        Record::Scheduled {
+            cue_id,
+            t2_ns,
+            t3_ns,
+        } => {
+            w.u32(cue_id)?;
+            w.u64(t2_ns)?;
+            w.u64(t3_ns)?;
+            12
+        }
     };
     head[0] = ty;
     head[1] = u8::try_from(w.n).ok()?;
@@ -293,6 +320,13 @@ pub fn decode(buf: &[u8]) -> Result<Option<(Record<'_>, usize)>, CaptureError> {
             directive: r.u8()?,
             arm: r.u8()?,
             decided_ns: r.u64()?,
+        },
+        10 => Record::Ping { t_ns: r.u64()? },
+        11 => Record::ResetLink,
+        12 => Record::Scheduled {
+            cue_id: r.u32()?,
+            t2_ns: r.u64()?,
+            t3_ns: r.u64()?,
         },
         other => return Err(CaptureError::BadType(other)),
     };
@@ -383,6 +417,22 @@ pub fn replay(data: &[u8]) -> Result<Replay, String> {
                     }
                     Record::Failed { cue_id, reason } => {
                         e.on_cue_failed(cue_id, reason);
+                        None
+                    }
+                    Record::Ping { t_ns } => {
+                        e.make_ping(t_ns);
+                        None
+                    }
+                    Record::ResetLink => {
+                        e.reset_link();
+                        None
+                    }
+                    Record::Scheduled {
+                        cue_id,
+                        t2_ns,
+                        t3_ns,
+                    } => {
+                        e.on_cue_scheduled(cue_id, t2_ns, t3_ns);
                         None
                     }
                     _ => None,

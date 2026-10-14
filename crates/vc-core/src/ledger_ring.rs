@@ -2,6 +2,7 @@
 //! ingest/tick without allocation; the platform drains them at 1 Hz into std
 //! code (vc-report) that writes JSONL. If the ring fills, the oldest record is
 //! dropped and the count rides on the next cue record (`dropped_before`).
+use crate::chain::CueChain;
 use heapless::Deque;
 use vc_efficacy::{Change, CueEvent, CueOutcome, Mode};
 
@@ -44,8 +45,10 @@ pub enum LedgerRecord {
         outcome: CueOutcome,
         draw_index: Option<u32>,
         onset_source: OnsetSource,
-        /// Clock-sync error bound for this cue's T0, +/- rtt_min/2 (0 until Day 15).
+        /// Clock-sync error bound for this cue's T0, +/- rtt_min/2.
         sync_bound_us: u32,
+        /// T0 -> T3 for the packet that triggered it (Day 15).
+        chain: CueChain,
         dropped_before: u32,
     },
     TunerChange {

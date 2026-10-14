@@ -153,6 +153,46 @@ fn primary(cues: &[&CueLine]) -> String {
     )
 }
 
+fn per_person(cues: &[&CueLine]) -> String {
+    // rider -> [(complied, scored); 3] for direct, autonomy, sham
+    let mut by: BTreeMap<&str, [(u32, u32); 3]> = BTreeMap::new();
+    for c in cues.iter().filter(|c| scorable(c)) {
+        let i = match c.arm.as_str() {
+            "direct" => 0,
+            "autonomy" => 1,
+            "sham" => 2,
+            _ => continue,
+        };
+        let e = &mut by.entry(c.rider_id.as_str()).or_insert([(0, 0); 3])[i];
+        e.0 += u32::from(c.verdict == "complied");
+        e.1 += 1;
+    }
+    let rate = |(k, n): (u32, u32)| (n > 0).then(|| f64::from(k) / f64::from(n));
+    let cell =
+        |p: (u32, u32)| rate(p).map_or("–".to_string(), |r| format!("{}/{} ({r:.2})", p.0, p.1));
+    let diff = |a: Option<f64>, b: Option<f64>| {
+        a.zip(b)
+            .map_or("–".to_string(), |(a, b)| format!("{:+.2}", b - a))
+    };
+    let mut html = String::from(
+        "<table><tr><th>person</th><th>direct (A)</th><th>autonomy (B)</th><th>B − A</th><th>sham</th><th>cue − sham</th></tr>",
+    );
+    for (rider, [a, b, s]) in &by {
+        let cue = (a.0 + b.0, a.1 + b.1);
+        let _ = write!(
+            html,
+            "<tr><td>{rider}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>",
+            cell(*a),
+            cell(*b),
+            diff(rate(*a), rate(*b)),
+            cell(*s),
+            diff(rate(*s), rate(cue)),
+        );
+    }
+    html.push_str("</table>");
+    html
+}
+
 fn latency_histogram(cues: &[&CueLine]) -> String {
     let mut svg = String::from(
         r#"<svg viewBox="0 0 640 180" width="640" role="img" aria-label="latency histogram">"#,
@@ -315,6 +355,7 @@ pub fn render(lines: &[Line], title: &str) -> String {
 <h2>Verdict mix per arm</h2>{bars}
 <h2>Compliance per arm (Wilson 95 %)</h2>{wilson}
 <h2>Primary outcomes</h2>{primary}
+<h2>Per person</h2>{per_person}
 {what_if}<h2>Latency</h2>{latency}
 <h2>Timeline</h2>{timeline}
 <h2>Tuner changes</h2>{tuner}
@@ -327,6 +368,7 @@ pub fn render(lines: &[Line], title: &str) -> String {
         bars = verdict_bars(&cues),
         wilson = wilson_rows(&cues),
         primary = primary(&cues),
+        per_person = per_person(&cues),
         what_if = what_if(&cues),
         latency = latency_histogram(&cues),
         timeline = timeline(&cues),

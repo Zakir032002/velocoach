@@ -6,7 +6,6 @@ uniffi::setup_scaffolding!();
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use vc_core::capture::{self, MAGIC, MAX_RECORD, Record};
-use vc_core::latency::Histogram;
 use vc_core::workout::{Step, StepKind as CoreKind, WorkoutPlan};
 use vc_efficacy::{Arm as CoreArm, Mode as CoreMode};
 use vc_gatt::{Channel, Ctrl, MAX_PAYLOAD, Telem, encode_ctrl, encode_telem};
@@ -148,12 +147,16 @@ pub struct Snapshot {
     pub policy_hash: String,
 }
 
-/// The observer's verdict for the on-screen badge (Day 12).
+/// The observer's verdict for the on-screen badge.
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct CueOutcomeFfi {
     pub cue_id: u32,
+    pub directive: String,
+    pub arm: String,
     pub verdict: String,
     pub l_obs_ms: Option<i32>,
+    pub l_onset_ms: Option<i32>,
+    pub coincidental: bool,
     pub confounds: Vec<String>,
 }
 
@@ -171,10 +174,23 @@ pub struct ScenarioInfo {
     pub minutes: f64,
 }
 
-/// Day 11: T1->T2. Day 15 adds T0->T3, T1->T3 and T3->T4.
+/// T1->T2 (Day 11); Day 15 adds T0->T1, T1->T3 and T0->T3.
 #[derive(Debug, Clone, Copy, uniffi::Enum)]
 pub enum LatencySegment {
     T1T2,
+    T0T1,
+    T1T3,
+    T0T3,
+}
+
+fn segment(s: LatencySegment) -> vc_core::engine::Segment {
+    use vc_core::engine::Segment as S;
+    match s {
+        LatencySegment::T1T2 => S::T1T2,
+        LatencySegment::T0T1 => S::T0T1,
+        LatencySegment::T1T3 => S::T1T3,
+        LatencySegment::T0T3 => S::T0T3,
+    }
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -186,10 +202,21 @@ pub struct LatencySummary {
     pub max_us: f64,
 }
 
-fn slot(s: LatencySegment) -> usize {
-    match s {
-        LatencySegment::T1T2 => 0,
-    }
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct LinkStats {
+    pub stamps: u32,
+    pub stamps_lost: u32,
+    pub negative_t0t1: u32,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct ClockStatus {
+    pub samples: u32,
+    pub rtt_min_us: Option<f64>,
+    /// +/- rtt_min / 2
+    pub bound_us: Option<f64>,
+    /// Rig clock minus phone clock.
+    pub theta_ms: Option<f64>,
 }
 
 // ---- Conversions -----------------------------------------------------------
@@ -285,7 +312,6 @@ struct Recorder {
 pub struct Engine {
     inner: Mutex<vc_core::Engine>,
     protocol_hash: Mutex<Option<String>>,
-    latency: Mutex<[Histogram; 4]>,
     capture: Mutex<Recorder>,
     cfg: vc_core::EngineConfig,
     steps: Vec<Step>,
@@ -401,26 +427,71 @@ impl Engine {
         e.on_cue_failed(cue_id, reason);
     }
 
-    /// Day 12: the observer's latest verdict.
+    /// The observer's latest verdict, with its directive and arm, for the badge.
     pub fn last_outcome(&self) -> Option<CueOutcomeFfi> {
-        let o = lock(&self.inner).last_outcome()?;
+        let o = lock(&self.inner).last_observed()?;
         Some(CueOutcomeFfi {
-            cue_id: o.cue_id,
-            verdict: o.verdict.name().to_string(),
-            l_obs_ms: o.l_obs_ms,
+            cue_id: o.outcome.cue_id,
+            directive: vc_core::Directive::from_code(o.event.directive)
+                .map_or("?", vc_core::Directive::name)
+                .to_string(),
+            arm: o.event.arm.name().to_string(),
+            verdict: o.outcome.verdict.name().to_string(),
+            l_obs_ms: o.outcome.l_obs_ms,
+            l_onset_ms: o.outcome.l_onset_ms,
+            coincidental: o.outcome.coincidental,
             confounds: vc_efficacy::Confound::ALL
                 .iter()
-                .filter(|(c, _)| o.confound.contains(*c))
-                .map(|(_, name)| name.to_string())
+                .filter(|(c, _)| o.outcome.confound.contains(*c))
+                .map(|(_, n)| (*n).to_string())
                 .collect(),
         })
     }
 
-    /// Day 14: the ledger summary.
+    /// The ledger as text: the phone shows it as-is.
     pub fn report_card(&self) -> ReportCard {
+        let e = lock(&self.inner);
+        let (mut scored, mut complied, mut confounded, mut invalid) = (0u32, 0u32, 0u32, 0u32);
+        let mut rows = Vec::new();
+        for s in e.ledger().iter() {
+            let c = s.counts;
+            scored += c.n();
+            complied += c.complied;
+            confounded += c.confounded;
+            invalid += c.invalid;
+            let name = vc_core::Directive::from_code(s.key.directive)
+                .map_or("?", vc_core::Directive::name);
+            let median = s.median_l_obs_ms.map_or(String::new(), |m| {
+                format!(", median L_obs {:.1} s", f64::from(m) / 1000.0)
+            });
+            rows.push(format!(
+                "{name} · {}: {}/{} complied{median}",
+                s.key.arm.name(),
+                c.complied,
+                c.n()
+            ));
+        }
+        rows.sort();
+        let pct = if scored > 0 {
+            100.0 * f64::from(complied) / f64::from(scored)
+        } else {
+            0.0
+        };
+        let tuning = match e.last_tuning() {
+            Some(r) if !r.is_empty() => {
+                format!(
+                    "\nLast tuning: {} change(s) at a step boundary.",
+                    r.iter().count()
+                )
+            }
+            _ => String::new(),
+        };
         ReportCard {
-            text: "No cues scored yet: the observer arrives on Day 12.".into(),
-            cues_scored: 0,
+            text: format!(
+                "{scored} cues scored, {complied} complied ({pct:.0} %). Excluded: {confounded} confounded, {invalid} invalid.\n{}{tuning}",
+                rows.join("\n")
+            ),
+            cues_scored: scored,
         }
     }
 
@@ -485,22 +556,12 @@ impl Engine {
     }
 
     pub fn record_latency(&self, segment: LatencySegment, ns: u64) {
-        if let Some(h) = lock(&self.latency).get_mut(slot(segment)) {
-            h.record(ns);
-        }
+        lock(&self.inner).record_latency(crate::segment(segment), ns);
     }
 
     pub fn latency_summary(&self, segment: LatencySegment) -> LatencySummary {
-        let all = lock(&self.latency);
-        let Some(h) = all.get(slot(segment)) else {
-            return LatencySummary {
-                count: 0,
-                p50_us: 0.0,
-                p90_us: 0.0,
-                p99_us: 0.0,
-                max_us: 0.0,
-            };
-        };
+        let e = lock(&self.inner);
+        let h = e.latency(crate::segment(segment));
         let us = |ns: u64| ns as f64 / 1_000.0;
         LatencySummary {
             count: h.count(),
@@ -512,9 +573,59 @@ impl Engine {
     }
 
     pub fn reset_latency(&self) {
-        for h in lock(&self.latency).iter_mut() {
-            h.clear();
+        lock(&self.inner).reset_latency();
+    }
+
+    /// A PING is about to be written at `t_ns`. Returns its id for encode_ping.
+    pub fn make_ping(&self, t_ns: u64) -> u16 {
+        let mut e = lock(&self.inner);
+        self.rec(Record::Ping { t_ns });
+        e.make_ping(t_ns)
+    }
+
+    /// A (re)connection: new clock samples, new packet counters.
+    pub fn reset_link(&self) {
+        let mut e = lock(&self.inner);
+        self.rec(Record::ResetLink);
+        e.reset_link();
+    }
+
+    pub fn clock_status(&self) -> ClockStatus {
+        let e = lock(&self.inner);
+        let c = e.clock();
+        let best = c.best();
+        ClockStatus {
+            samples: c.samples() as u32,
+            rtt_min_us: best.map(|s| s.rtt_ns as f64 / 1e3),
+            bound_us: best.map(|s| s.rtt_ns as f64 / 2e3),
+            theta_ms: best.map(|s| s.theta_ns as f64 / 1e6),
         }
+    }
+
+    /// The platform scheduled the clip: T2 (ingest/tick returned) and T3 (render start).
+    pub fn on_cue_scheduled(&self, cue_id: u32, t2_ns: u64, t3_ns: u64) {
+        let mut e = lock(&self.inner);
+        self.rec(Record::Scheduled {
+            cue_id,
+            t2_ns,
+            t3_ns,
+        });
+        e.on_cue_scheduled(cue_id, t2_ns, t3_ns);
+    }
+
+    pub fn link_stats(&self) -> LinkStats {
+        let e = lock(&self.inner);
+        let c = e.chain();
+        LinkStats {
+            stamps: c.stamps,
+            stamps_lost: c.stamps_lost,
+            negative_t0t1: c.negative_t0t1,
+        }
+    }
+
+    /// After the d_route loopback: onsets are `loopback`, not `scheduled`.
+    pub fn set_route_delay_known(&self, known: bool) {
+        lock(&self.inner).set_route_delay_known(known);
     }
 
     /// Up to `max` ledger records as JSONL (one per line). Allocates: call it at
@@ -581,7 +692,6 @@ impl Engine {
         Ok(Arc::new(Self {
             inner: Mutex::new(engine),
             protocol_hash: Mutex::new(None),
-            latency: Mutex::new(Default::default()),
             capture: Mutex::new(Recorder {
                 on: false,
                 buf: Vec::new(),
@@ -649,6 +759,60 @@ pub fn encode_start() -> Vec<u8> {
 #[uniffi::export]
 pub fn encode_stop() -> Vec<u8> {
     ctrl_bytes(&Ctrl::Stop)
+}
+
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum RateChannel {
+    All,
+    Hrm,
+    Cpm,
+    Csc,
+}
+
+#[uniffi::export]
+pub fn encode_rate(channel: RateChannel, hz_x10: u8) -> Vec<u8> {
+    let channel = match channel {
+        RateChannel::All => None,
+        RateChannel::Hrm => Some(Channel::Hrm),
+        RateChannel::Cpm => Some(Channel::Cpm),
+        RateChannel::Csc => Some(Channel::Csc),
+    };
+    ctrl_bytes(&Ctrl::Rate { channel, hz_x10 })
+}
+
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum FaultKind {
+    Dropout,
+    Garbage,
+    Disconnect,
+    Coast,
+    HrRedline,
+    WprimeMismatch,
+}
+
+/// iPhone -> iQOO: inject a fault (the debug "HR redline at __ s" field uses it).
+#[uniffi::export]
+pub fn encode_fault(kind: FaultKind, channel: RateChannel, dur_ms: u32, param: i16) -> Vec<u8> {
+    let kind = match kind {
+        FaultKind::Dropout => vc_gatt::FaultKind::Dropout,
+        FaultKind::Garbage => vc_gatt::FaultKind::Garbage,
+        FaultKind::Disconnect => vc_gatt::FaultKind::Disconnect,
+        FaultKind::Coast => vc_gatt::FaultKind::Coast,
+        FaultKind::HrRedline => vc_gatt::FaultKind::HrRedline,
+        FaultKind::WprimeMismatch => vc_gatt::FaultKind::WprimeMismatch,
+    };
+    let channel = match channel {
+        RateChannel::All => None,
+        RateChannel::Hrm => Some(Channel::Hrm),
+        RateChannel::Cpm => Some(Channel::Cpm),
+        RateChannel::Csc => Some(Channel::Csc),
+    };
+    ctrl_bytes(&Ctrl::Fault {
+        kind,
+        channel,
+        dur_ms,
+        param,
+    })
 }
 
 #[uniffi::export]

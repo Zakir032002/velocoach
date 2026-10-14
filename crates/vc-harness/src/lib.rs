@@ -17,6 +17,8 @@ pub struct RunOpts<'a> {
     pub seed: Option<u64>,
     pub mode: Mode,
     pub mode_seed: u64,
+    /// CTRL messages to apply at given ride times (ns), e.g. a scripted FAULT.
+    pub ctrl_at: &'a [(u64, Vec<u8>)],
 }
 
 impl Default for RunOpts<'_> {
@@ -27,6 +29,7 @@ impl Default for RunOpts<'_> {
             seed: None,
             mode: Mode::Coach,
             mode_seed: 0,
+            ctrl_at: &[],
         }
     }
 }
@@ -73,6 +76,8 @@ impl Harness {
             }
         }
         let onset = t + u64::from(d.lead_ms) * MS;
+        // Virtual times: T2 = now, T3 = the scheduled start. No second clock, so no T0.
+        self.engine.on_cue_scheduled(d.id, t, onset);
         self.playing
             .push((onset, onset + u64::from(ASSUMED_CLIP_MS) * MS, d.id));
         let delta_w = d
@@ -132,8 +137,16 @@ pub fn run_sim(o: RunOpts<'_>) -> Result<SimRun, String> {
     let mut out = heapless::Vec::<SimPacket, MAX_OUT>::new();
     let end = sc.total_ns() + 20 * S; // NEW: 20 s extra so the last window can close
     let mut t = 0u64;
+    let mut next_ctrl = 0usize;
     while t <= end {
         h.finish_due(t);
+        // Scripted CTRL messages (e.g. a FAULT) at their ride times.
+        while let Some((at, bytes)) = o.ctrl_at.get(next_ctrl)
+            && *at <= t
+        {
+            h.sim.apply_ctrl(t, bytes).map_err(|e| e.to_string())?;
+            next_ctrl += 1;
+        }
         h.sim.step_into(t, &mut out);
         if let Some(truth) = h.sim.truth() {
             h.engine.set_grade(Some(truth.grade_pct)); // NEW: the Mac knows the road

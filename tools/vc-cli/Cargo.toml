@@ -9,7 +9,9 @@ publish = false
 vc-core = { path = "../../crates/vc-core", features = ["testkit"] }
 anyhow = { workspace = true }
 vc-sim = { path = "../../crates/vc-sim" }
+vc-efficacy = { path = "../../crates/vc-efficacy" }
 vc-gatt = { path = "../../crates/vc-gatt" }
+vc-physio = { path = "../../crates/vc-physio" }
 vc-harness = { path = "../../crates/vc-harness" }
 vc-report = { path = "../../crates/vc-report" }
 heapless = { workspace = true }
