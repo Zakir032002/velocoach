@@ -82,3 +82,33 @@
 - Decision: onset/end computed from T3 + dur (+ d_route from Day 15); the callback is cross-checked, outputLatency not subtracted
 - Broke: __
 - Tomorrow: Day 11 gate: 20-min run, T1->T2 histogram, raw capture + replay, Vivo 30-min, tag v0.1.0
+
+## Day 11 — 2026-10-__ (v-final plan) — GATE G-11
+- Run 1 (climb_surge, 19 min): faults __; unrecovered __; decisions __; skew __..__ ms
+- T1->T2 (15 min, capture off): p50 __ us, p90 __, p99 __, max __ (n=__); with capture on: p99 __
+- Replay of run 1: __ decisions, identical: yes/no (if no: cause __, fix __)
+- Vivo 30 min, unplugged, screen on: service alive __; CPM sent __ / ~6000; battery __ % -> __ %
+- Vivo screen off 2 min (info): power stayed Fresh / went Stale after __ s
+- Fixes today: CP Feature crank check; audio route display; rig reopens the GATT server after BT toggles; __
+- Gate: 15 min __ · earcons __ · replay __ · CI __ · T1->T2 __  =>  PASS / FAIL
+- Tagged v0.1.0 at __
+- Tomorrow: vc-efficacy P3Ring + Observer (headless)
+
+### Day 11 run 1 — climb_surge, dana, seed 42, earbuds: __
+- 00:00 start; ready after __ s
+- 04:55 / 05:00 countdown / go: heard __ / __
+- 06:00 rig BT off 10 s: Stale at __, Lost at __, dropout cue at __, ready again at __, Fresh at __
+- 08:50 W′ cue at __ (arm __); power after __ W
+- 10:00-12:00 locked: __
+- 14:00 earbud out/in: __
+- totals: decisions __; decode errors __; rig dropped __; CTRL received __; skew range __ to __ ms
+- unrecovered failures: __ (gate needs 0 in >= 15 min)
+
+## Day 12 — 2026-10-__ (v-final plan)
+- Done: vc-efficacy P3Ring (40 x 1-s bins) and Observer (anchor before onset, OLS pre-trend clamped +/-2 W/s, counterfactual, 3-s hold, verdicts, L_obs, coincidental, 7 confounders); __ synthetic tests + offset property; E5
+- Measured: update at a bin boundary __ ns, mid-bin __ ns (M2); allocations 0
+- Decision: anchor = the last complete second before onset (mid-phrase reactions cannot move the baseline)
+- Decision: L_obs reported as defined (includes ~2.0 s of smoothing lag); SMOOTHING_LAG_MS documented for E1
+- Decision: a hole in the power data is a quality confounder, never a verdict
+- Broke: __
+- Tomorrow: ledger + tuner, E3/E4, Engine integration, E1, E2

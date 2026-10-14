@@ -4,14 +4,29 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.bluetooth.BluetoothAdapter
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import android.util.Log
+
 /** Owns the GATT server and the simulator thread for as long as the rig runs. */
 class RigService : Service() {
     private var rig: GattRig? = null
     private var driver: SimDriver? = null
+
+    private val btState = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) {
+            if (i.getIntExtra(BluetoothAdapter.EXTRA_STATE, -1) == BluetoothAdapter.STATE_ON) {
+                rig?.close()
+                RigStatus.servicesAdded = 0
+                rig = GattRig(this@RigService, driver ?: return).also { driver?.attach(it); it.open() }
+            }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -37,6 +52,7 @@ class RigService : Service() {
             r.open()
             driver = d
             rig = r
+            registerReceiver(btState, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
         }
         // Start/Stop pressed on the rig's own screen: the same path as a CTRL write.
         intent?.getByteArrayExtra(EXTRA_CTRL)?.let { driver?.ctrl(it, fromScreen = true) }
@@ -44,6 +60,7 @@ class RigService : Service() {
     }
 
     override fun onDestroy() {
+        if (rig != null) unregisterReceiver(btState)
         driver?.quit()
         rig?.close()
         driver = null

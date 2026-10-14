@@ -20,3 +20,6 @@ vc-gatt = { path = "../vc-gatt" }
 vc-sim = { path = "../vc-sim" }
 heapless = { workspace = true }
 uniffi = "=0.32.2"
+
+[dev-dependencies]
+vc-core = { path = "../vc-core", features = ["testkit"] }

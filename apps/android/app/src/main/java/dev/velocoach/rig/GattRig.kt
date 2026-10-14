@@ -201,6 +201,7 @@ class GattRig(private val ctx: Context, private val driver: SimDriver) {
             val v = if (on) BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE else BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE
             server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, v)
         }
+
         override fun onDescriptorWriteRequest(
             device: BluetoothDevice, requestId: Int, d: BluetoothGattDescriptor,
             preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray,

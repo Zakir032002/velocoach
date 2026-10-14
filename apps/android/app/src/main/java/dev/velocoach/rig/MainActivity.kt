@@ -80,6 +80,7 @@ class MainActivity : Activity() {
             ui.postDelayed(this, 500)
         }
     }
+
     /** Only ever called with every permission granted. */
     private fun startRig() = startForegroundService(Intent(this, RigService::class.java))
 

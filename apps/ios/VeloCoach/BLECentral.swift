@@ -93,6 +93,7 @@ final class BLECentral: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
             p.discoverCharacteristics(Uuids.wanted[s.uuid], for: s)
         }
     }
+
     func peripheral(_ p: CBPeripheral, didDiscoverCharacteristicsFor s: CBService, error: Error?) {
         for c in s.characteristics ?? [] {
             if Uuids.notifying.contains(c.uuid) {
@@ -115,6 +116,12 @@ final class BLECentral: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 
     func peripheral(_ p: CBPeripheral, didUpdateValueFor c: CBCharacteristic, error: Error?) {
         let t1 = Clock.nowNs() // T1: the first line, before anything else
+        if c.uuid == Uuids.cpFeature, let v = c.value, v.count >= 4 {
+            let crank = (v[0] & 0x08) != 0
+            stateText = crank ? stateText : "meter has no crank data: no cadence"
+            print("vc: CP Feature \(v.map { String(format: "%02X", $0) }.joined()) crank=\(crank)")
+            return
+        }
         guard error == nil, let bytes = c.value, let source = Self.source(of: c.uuid) else { return }
         delegate?.central(didReceive: bytes, from: source, t1: t1)
     }

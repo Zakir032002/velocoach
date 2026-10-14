@@ -4,6 +4,10 @@
 <dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>VeloCoach connects to your sensors over Bluetooth.</string>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>

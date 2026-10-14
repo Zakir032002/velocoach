@@ -14,3 +14,4 @@ crates/vc-gatt/fuzz-*.log
 .swiftpm/
 crates/vc-sim/fuzz/artifacts/
 crates/vc-sim/fuzz/target/
+runs/

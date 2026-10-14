@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import VcCore
 
@@ -10,12 +11,19 @@ struct RideView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("link: \(model.link)").font(.headline)
+            Text("audio: \(AVAudioSession.sharedInstance().currentRoute.outputs.first?.portType.rawValue ?? "none")")
+                .font(.caption)
             if let s = model.snapshot {
                 Text(String(format: "%.0f W (3 s: %.0f) · %d bpm · %.0f rpm", s.powerW, s.p3W ?? 0, s.hrBpm, s.cadenceRpm))
                 Text(String(format: "W′ %.0f %%", s.wbalFraction * 100))
                 Text("quality  HR \(s.hrQuality) · power \(s.powerQuality) · cadence \(s.cadenceQuality)")
                 Text("step \(s.stepIndex.map { String($0 + 1) } ?? "-") · \(Int(s.stepRemainingS)) s left\(s.paused ? " · paused" : "")")
                 Text("decode errors \(s.decodeErrors) · implausible \(s.implausible)").font(.caption)
+            }
+            if let l = model.t1t2, l.count > 0 {
+                Text(String(format: "T1→T2  p50 %.0f µs · p90 %.0f · p99 %.0f · max %.0f  (n=%llu)",
+                            l.p50Us, l.p90Us, l.p99Us, l.maxUs, l.count))
+                    .font(.caption.monospaced())
             }
             if let e = model.error { Text(e).foregroundStyle(.red) }
 

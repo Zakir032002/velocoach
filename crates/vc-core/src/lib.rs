@@ -6,12 +6,14 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 #![allow(unused)]
+pub mod capture;
 pub mod config;
 pub mod decision;
 pub mod directive;
 pub mod engine;
 pub mod golden;
 pub mod hysteresis;
+pub mod latency;
 pub mod lint;
 pub mod phrase;
 pub mod policy;

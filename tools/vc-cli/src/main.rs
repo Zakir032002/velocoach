@@ -247,6 +247,7 @@ fn main() -> Result<()> {
         Some("golden") => golden(args.iter().any(|arg| arg == "--check")),
         Some("hex") => hex_cmd(&args[2..]),
         Some("phrases") => phrases_cmd(),
+        Some("replay") => replay_cmd(args.get(2).context("usage: vc-cli replay <file.vcraw>")?),
         _ => {
             eprintln!(
                 "Usage:\n  vc-cli sim [--scenario NAME] \
@@ -303,6 +304,30 @@ fn phrases_cmd() -> Result<()> {
     // The volume-calibration clip: not a cue, never linted, never sent to the Engine.
     println!("CAL\tAdjust the volume now, this is a test\t-\t-");
     Ok(())
+}
+
+fn replay_cmd(path: &str) -> Result<()> {
+    let data = std::fs::read(path).with_context(|| format!("reading {path}"))?;
+    let r = vc_core::capture::replay(&data).map_err(|e| anyhow!(e))?;
+    println!(
+        "phone: {} decisions · replay: {} decisions",
+        r.phone.len(),
+        r.replayed.len()
+    );
+    if r.phone == r.replayed {
+        println!("identical");
+        return Ok(());
+    }
+    let i = r
+        .phone
+        .iter()
+        .zip(&r.replayed)
+        .position(|(a, b)| a != b)
+        .unwrap_or(r.phone.len().min(r.replayed.len()));
+    println!("first difference at decision {i}:");
+    println!("  phone:  {:?}", r.phone.get(i));
+    println!("  replay: {:?}", r.replayed.get(i));
+    anyhow::bail!("replay differs");
 }
 
 fn persona_code(name: &str) -> Result<u8> {

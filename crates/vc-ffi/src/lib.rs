@@ -5,6 +5,8 @@ uniffi::setup_scaffolding!();
 
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use vc_core::capture::{self, MAGIC, MAX_RECORD, Record};
+use vc_core::latency::Histogram;
 use vc_core::workout::{Step, StepKind as CoreKind, WorkoutPlan};
 use vc_efficacy::{Arm as CoreArm, Mode as CoreMode};
 use vc_gatt::{Channel, Ctrl, MAX_PAYLOAD, Telem, encode_ctrl, encode_telem};
@@ -169,6 +171,27 @@ pub struct ScenarioInfo {
     pub minutes: f64,
 }
 
+/// Day 11: T1->T2. Day 15 adds T0->T3, T1->T3 and T3->T4.
+#[derive(Debug, Clone, Copy, uniffi::Enum)]
+pub enum LatencySegment {
+    T1T2,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct LatencySummary {
+    pub count: u64,
+    pub p50_us: f64,
+    pub p90_us: f64,
+    pub p99_us: f64,
+    pub max_us: f64,
+}
+
+fn slot(s: LatencySegment) -> usize {
+    match s {
+        LatencySegment::T1T2 => 0,
+    }
+}
+
 // ---- Conversions -----------------------------------------------------------
 
 fn core_profile(p: Profile) -> vc_core::Profile {
@@ -253,10 +276,19 @@ fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
 
 // ---- Engine ----------------------------------------------------------------
 
+struct Recorder {
+    on: bool,
+    buf: Vec<u8>,
+}
+
 #[derive(uniffi::Object)]
 pub struct Engine {
     inner: Mutex<vc_core::Engine>,
     protocol_hash: Mutex<Option<String>>,
+    latency: Mutex<[Histogram; 4]>,
+    capture: Mutex<Recorder>,
+    cfg: vc_core::EngineConfig,
+    steps: Vec<Step>,
 }
 
 #[uniffi::export]
@@ -276,7 +308,9 @@ impl Engine {
     }
 
     pub fn start(&self, t_ns: u64) {
-        lock(&self.inner).start(t_ns);
+        let mut e = lock(&self.inner);
+        self.rec(Record::Start { t_ns });
+        e.start(t_ns);
     }
 
     /// Bad bytes and backwards timestamps are counted/ignored, not thrown
@@ -291,15 +325,28 @@ impl Engine {
             Source::Telem => vc_core::Source::Telem,
         };
 
-        lock(&self.inner)
-            .ingest(t_ns, src, &bytes)
-            .ok()
-            .flatten()
-            .map(ffi_decision)
+        // Bad bytes are inputs too: record first, then call, under one lock.
+        let mut e = lock(&self.inner);
+        self.rec(Record::Ingest {
+            t_ns,
+            source: src,
+            bytes: &bytes,
+        });
+        let decision = e.ingest(t_ns, src, &bytes).ok().flatten();
+        if let Some(d) = &decision {
+            self.rec_decision(d);
+        }
+        decision.map(ffi_decision)
     }
 
     pub fn tick(&self, t_ns: u64) -> Option<CueDecision> {
-        lock(&self.inner).tick(t_ns).map(ffi_decision)
+        let mut e = lock(&self.inner);
+        self.rec(Record::Tick { t_ns });
+        let decision = e.tick(t_ns);
+        if let Some(d) = &decision {
+            self.rec_decision(d);
+        }
+        decision.map(ffi_decision)
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -330,7 +377,14 @@ impl Engine {
     }
 
     pub fn on_cue_played(&self, cue_id: u32, t_onset_ns: u64, t_end_ns: u64, t_callback_ns: u64) {
-        lock(&self.inner).on_cue_played(cue_id, t_onset_ns, t_end_ns, t_callback_ns);
+        let mut e = lock(&self.inner);
+        self.rec(Record::Played {
+            cue_id,
+            onset_ns: t_onset_ns,
+            end_ns: t_end_ns,
+            callback_ns: t_callback_ns,
+        });
+        e.on_cue_played(cue_id, t_onset_ns, t_end_ns, t_callback_ns);
     }
 
     pub fn on_cue_failed(&self, cue_id: u32, reason: AudioFailure) {
@@ -341,7 +395,9 @@ impl Engine {
             AudioFailure::Other => vc_core::engine::AudioFailure::Other,
         };
 
-        lock(&self.inner).on_cue_failed(cue_id, reason);
+        let mut e = lock(&self.inner);
+        self.rec(Record::Failed { cue_id, reason });
+        e.on_cue_failed(cue_id, reason);
     }
 
     /// Day 12: the observer's latest verdict.
@@ -370,12 +426,83 @@ impl Engine {
             Mode::Replay => CoreMode::Replay,
         };
 
-        lock(&self.inner)
-            .set_mode(mode, seed)
-            .map_err(|e| VcError::Config(e.to_string()))?;
+        {
+            let mut e = lock(&self.inner);
+            self.rec(Record::Mode { mode, seed });
+            e.set_mode(mode, seed)
+                .map_err(|e| VcError::Config(e.to_string()))?;
+        }
 
         *lock(&self.protocol_hash) = protocol_hash;
         Ok(())
+    }
+
+    /// Turn capture on before set_mode and start: the header (config + plan) is
+    /// written now, and everything after is recorded.
+    pub fn set_capture(&self, on: bool) {
+        {
+            let mut c = lock(&self.capture);
+            c.on = on;
+            if !on {
+                return;
+            }
+            c.buf.clear();
+            c.buf.reserve(1 << 20);
+            c.buf.extend_from_slice(&MAGIC);
+        }
+        let cfg = self.cfg;
+        self.rec(Record::Config {
+            cp_w: cfg.cp_w,
+            wprime_j: cfg.wprime_j,
+            hr_max: cfg.hr_max,
+            profile: cfg.profile,
+            cooldown_s: cfg.cooldown_between_alerts_s,
+            surge_lead_s: cfg.prompt_surge_countdown_s,
+        });
+        for s in &self.steps {
+            self.rec(Record::Step(*s));
+        }
+    }
+
+    /// Everything recorded since the last call. Call about once a second.
+    pub fn take_capture(&self) -> Vec<u8> {
+        let mut c = lock(&self.capture);
+        let out = std::mem::take(&mut c.buf);
+        c.buf.reserve(1 << 16);
+        out
+    }
+
+    pub fn record_latency(&self, segment: LatencySegment, ns: u64) {
+        if let Some(h) = lock(&self.latency).get_mut(slot(segment)) {
+            h.record(ns);
+        }
+    }
+
+    pub fn latency_summary(&self, segment: LatencySegment) -> LatencySummary {
+        let all = lock(&self.latency);
+        let Some(h) = all.get(slot(segment)) else {
+            return LatencySummary {
+                count: 0,
+                p50_us: 0.0,
+                p90_us: 0.0,
+                p99_us: 0.0,
+                max_us: 0.0,
+            };
+        };
+        let us = |ns: u64| ns as f64 / 1_000.0;
+        LatencySummary {
+            count: h.count(),
+            p50_us: us(h.quantile_ns(0.50)),
+            p90_us: us(h.quantile_ns(0.90)),
+            p99_us: us(h.quantile_ns(0.99)),
+            max_us: us(h.max_ns()),
+        }
+    }
+
+    pub fn reset_latency(&self) {
+        for h in lock(&self.latency).iter_mut() {
+            h.clear();
+        }
     }
 
     /// Day 14: up to max ledger records as JSONL.
@@ -386,12 +513,41 @@ impl Engine {
 }
 
 impl Engine {
+    fn rec(&self, r: Record<'_>) {
+        let mut c = lock(&self.capture);
+        if !c.on {
+            return;
+        }
+        let mut tmp = [0u8; MAX_RECORD];
+        if let Some(n) = capture::encode(&r, &mut tmp) {
+            c.buf.extend_from_slice(&tmp[..n]);
+        }
+    }
+
+    fn rec_decision(&self, d: &vc_core::CueDecision) {
+        let (cue_id, directive, arm, decided_ns) = capture::key(d);
+        self.rec(Record::Decision {
+            cue_id,
+            directive,
+            arm,
+            decided_ns,
+        });
+    }
+
     fn build(cfg: vc_core::EngineConfig, plan: WorkoutPlan) -> Result<Arc<Self>, VcError> {
+        let steps = plan.steps().to_vec();
         let engine = vc_core::Engine::new(cfg, plan).map_err(|e| VcError::Config(e.to_string()))?;
 
         Ok(Arc::new(Self {
             inner: Mutex::new(engine),
             protocol_hash: Mutex::new(None),
+            latency: Mutex::new(Default::default()),
+            capture: Mutex::new(Recorder {
+                on: false,
+                buf: Vec::new(),
+            }),
+            cfg,
+            steps,
         }))
     }
 }

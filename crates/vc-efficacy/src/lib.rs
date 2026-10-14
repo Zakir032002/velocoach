@@ -5,6 +5,12 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+pub mod observer;
+pub mod p3;
+
+pub use observer::{ObsContext, Observer};
+pub use p3::P3Ring;
+
 pub const OBSERVER_VERSION: &str = "vc-efficacy 0.2.0";
 
 /// Coach: tuner on, deterministic round-robin. Study: tuner frozen, arms

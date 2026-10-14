@@ -5,12 +5,14 @@ struct CueLine: Identifiable {
     let id: UInt32
     let text: String
 }
+
 final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDelegate {
     // Published on main only.
     @Published private(set) var snapshot: Snapshot?
     @Published private(set) var cues: [CueLine] = []
     @Published private(set) var link = "idle"
     @Published private(set) var error: String?
+    @Published private(set) var t1t2: LatencySummary?
     @Published var scenarioId: UInt8 = 1
     @Published var persona: UInt8 = 0
 
@@ -22,6 +24,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     private var engine: Engine?
     private var timer: DispatchSourceTimer?
     private var lastTick: UInt64 = 0
+    private var tickCount = 0
     private var startNs: UInt64 = 0
 
     init() {
@@ -42,6 +45,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
             self.ble.write(encodeStop(), withResponse: true)
             self.timer?.cancel()
             self.timer = nil
+            self.flushCapture(close: true)
             self.engine = nil
         }
     }
@@ -61,6 +65,9 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         let now = Clock.nowNs()
         startNs = now
         lastTick = now
+        engine?.resetLatency()
+        engine?.setCapture(on: true)
+        openCapture()
         engine?.start(tNs: now)
         startTimer()
         DispatchQueue.main.async { self.cues = []; self.error = nil }
@@ -89,17 +96,21 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
             self.snapshot = s
             self.link = link
         }
+        tickCount += 1
+        if tickCount % 4 == 0 {
+            let l = e.latencySummary(segment: .t1T2)
+            DispatchQueue.main.async { self.t1t2 = l }
+            flushCapture()
+        }
     }
 
     func central(didReceive bytes: Data, from source: Source, t1: UInt64) {
         guard let e = engine else { return }
-        if let d = e.ingest(tNs: t1, source: source, bytes: bytes) {
-            handle(d, at: t1)
-        }
-        // A stalled timer (screen locked) must not hold back time-based cues.
-        if t1 > lastTick + 300_000_000 {
-            tick(t1)
-        }
+        let d = e.ingest(tNs: t1, source: source, bytes: bytes)
+        let t2 = Clock.nowNs() // T2: the Engine has decided
+        e.recordLatency(segment: .t1T2, ns: t2 - t1)
+        if let d { handle(d, at: t1) }
+        if t1 > lastTick + 300_000_000 { tick(t1) }
     }
 
     func centralDidBecomeReady() {
@@ -124,6 +135,34 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
             return
         }
         ble.write(encodeCuePlayed(d: d, durMs: durMs), withResponse: false)
+    }
+
+    // MARK: capture (io.q)
+    private let io = DispatchQueue(label: "io.q", qos: .utility)
+    private var captureFile: FileHandle? // io.q only
+
+    private func openCapture() {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("captures", isDirectory: true)
+        let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+        let url = dir.appendingPathComponent("ride-\(stamp).vcraw")
+        io.async {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+            self.captureFile = try? FileHandle(forWritingTo: url)
+        }
+    }
+
+    private func flushCapture(close: Bool = false) {
+        guard let e = engine else { return }
+        let chunk = e.takeCapture() // on ble.q
+        io.async {
+            if !chunk.isEmpty { try? self.captureFile?.write(contentsOf: chunk) }
+            if close {
+                try? self.captureFile?.close()
+                self.captureFile = nil
+            }
+        }
     }
 
     // MARK: AudioCuePlayerDelegate (ble.q)
