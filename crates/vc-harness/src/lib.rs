@@ -157,6 +157,7 @@ pub fn run_sim(o: RunOpts<'_>) -> Result<SimRun, String> {
         h.collect_outcome();
         t += 50 * MS;
     }
+    h.engine.end_session(end);
     Ok(SimRun {
         truth: h.sim.responses().to_vec(),
         ledger: h.engine.ledger().clone(),

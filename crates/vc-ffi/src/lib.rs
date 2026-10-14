@@ -289,6 +289,7 @@ pub struct Engine {
     capture: Mutex<Recorder>,
     cfg: vc_core::EngineConfig,
     steps: Vec<Step>,
+    writer: Mutex<vc_report::Writer>,
 }
 
 #[uniffi::export]
@@ -443,6 +444,7 @@ impl Engine {
                 .map_err(|e| VcError::Config(e.to_string()))?;
         }
 
+        lock(&self.writer).protocol_hash = protocol_hash.clone();
         *lock(&self.protocol_hash) = protocol_hash;
         Ok(())
     }
@@ -515,10 +517,38 @@ impl Engine {
         }
     }
 
-    /// Day 14: up to max ledger records as JSONL.
+    /// Up to `max` ledger records as JSONL (one per line). Allocates: call it at
+    /// about 1 Hz, never from inside ingest.
     pub fn drain_ledger_jsonl(&self, max: u32) -> String {
-        let _ = max;
-        String::new()
+        let mut buf = [vc_core::LedgerRecord::SessionEnd {
+            t_ns: 0,
+            cues: 0,
+            dropped: 0,
+        }; 32];
+        let mut out = String::new();
+        let mut left = max as usize;
+        let mut writer = lock(&self.writer);
+        while left > 0 {
+            let n = lock(&self.inner).ledger_pop(&mut buf[..left.min(32)]);
+            if n == 0 {
+                break;
+            }
+            for r in &buf[..n] {
+                out.push_str(&vc_report::to_json(&writer.line(r)));
+                out.push('\n');
+            }
+            left -= n;
+        }
+        out
+    }
+
+    /// The pseudonym written on every record ("R01" ... "R03").
+    pub fn set_rider(&self, rider_id: String) {
+        lock(&self.writer).rider_id = rider_id;
+    }
+
+    pub fn end_session(&self, t_ns: u64) {
+        lock(&self.inner).end_session(t_ns);
     }
 }
 
@@ -558,6 +588,7 @@ impl Engine {
             }),
             cfg,
             steps,
+            writer: Mutex::new(vc_report::Writer::new("R01", None)),
         }))
     }
 }

@@ -17,6 +17,7 @@ sim = []
 vc-core = { path = "../vc-core" }
 vc-efficacy = { path = "../vc-efficacy" }
 vc-gatt = { path = "../vc-gatt" }
+vc-report = { path = "../vc-report" }
 vc-sim = { path = "../vc-sim" }
 heapless = { workspace = true }
 uniffi = "=0.32.2"

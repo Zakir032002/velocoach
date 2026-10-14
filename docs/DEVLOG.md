@@ -124,3 +124,13 @@
 - Checkpoint: E1-E4 green -> IPS allowed on Day 14 H6: yes/no
 - Broke: __
 - Tomorrow: ledger ring, vc-report (schema, JSONL, stats, html, audit), E6, E8, gate G-14
+
+## Day 14 — 2026-10-__ (v-final plan) — GATE G-14
+- Done: LedgerRing<256> + ledger_pop + session start/end; vc-report (velocoach.irp.v1 writer/reader, Wilson, person-stratified bootstrap B=10,000 seed 20261013, median/IQR, html report card, audit M2-M5, IPS/SNIPS + conservative gate: built/cut); drain_ledger_jsonl on the phone; vc-cli --jsonl; E6 in CI
+- E1 __/20 · E2 6/6 · E3 ok · E4 ok · E5 __ ns, 0 allocs · E6 identical on Linux and macOS · E8 coverage __/200
+- S4 ok · S5 ok · S6 scheduled Day 17 · S7 ok · S8 ok · S9 ok · S10 ok (with ledger push)
+- Tagged v0.2.0 at __
+- Decision: the session id is derived (start time, seed, rider), never from a wall clock
+- Decision: E8 tests the statistics with Ned's outcomes drawn directly; E1 tests the observer
+- Broke: __
+- Tomorrow: clock sync, per-cue T0-T3, d_route loopback, 15-min S2 run, STUDY.md, human mode

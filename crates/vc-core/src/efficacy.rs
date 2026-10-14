@@ -48,6 +48,13 @@ fn event_of(d: &CueDecision, profile: u8) -> CueEvent {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Observed {
+    pub event: CueEvent,
+    pub outcome: CueOutcome,
+    pub draw_index: Option<u32>,
+}
+
 /// What the Engine knows this call, besides the power ring.
 #[derive(Debug, Clone, Copy)]
 pub struct Now {
@@ -61,10 +68,10 @@ pub struct Now {
 pub struct Hub {
     ring: P3Ring,
     observer: Observer,
-    open_event: Option<CueEvent>,
+    open_event: Option<(CueEvent, Option<u32>)>,
     ledger: Ledger,
     tuner: Tuner,
-    pending: [Option<CueEvent>; PENDING],
+    pending: [Option<(CueEvent, Option<u32>)>; PENDING],
     p1_times: [u64; P1_LOG],
     p1_next: usize,
     last_power_bad_ns: Option<u64>,
@@ -133,22 +140,22 @@ impl Hub {
             ev.t_end_ns = ev.t_onset_ns + est_phrase_ns;
         }
         let slot = self.pending.iter().position(Option::is_none).unwrap_or(0); // full: the oldest is overwritten
-        self.pending[slot] = Some(ev);
+        self.pending[slot] = Some((ev, d.draw_index));
     }
 
     pub fn on_cue_played(&mut self, cue_id: u32, onset_ns: u64, end_ns: u64) {
-        if let Some(ev) = self
+        if let Some((ev, _)) = self
             .pending
             .iter_mut()
             .flatten()
-            .find(|e| e.cue_id == cue_id)
+            .find(|(e, _)| e.cue_id == cue_id)
         {
             ev.t_onset_ns = onset_ns;
             ev.t_end_ns = end_ns.max(onset_ns);
         }
     }
 
-    pub fn on_cue_failed(&mut self, cue_id: u32) -> Option<CueOutcome> {
+    pub fn on_cue_failed(&mut self, cue_id: u32) -> Option<Observed> {
         if self.observer.open_cue() == Some(cue_id) {
             self.interrupted_flag = true;
             return None;
@@ -156,15 +163,14 @@ impl Hub {
         let slot = self
             .pending
             .iter_mut()
-            .find(|p| p.is_some_and(|e| e.cue_id == cue_id))?;
-        let ev = slot.take()?;
+            .find(|p| p.is_some_and(|(e, _)| e.cue_id == cue_id))?;
+        let (ev, draw) = slot.take()?;
         let o = invalid(&ev);
-        self.finish(&ev, o);
-        Some(o)
+        Some(self.finish(&ev, o, draw))
     }
 
     /// After every ingest and tick. Returns an outcome when one is decided.
-    pub fn update(&mut self, now: Now) -> Option<CueOutcome> {
+    pub fn update(&mut self, now: Now) -> Option<Observed> {
         if !now.power_fresh {
             self.last_power_bad_ns = Some(now.t_ns);
         }
@@ -173,8 +179,8 @@ impl Hub {
             let ready = self
                 .pending
                 .iter()
-                .position(|p| p.is_some_and(|e| e.t_end_ns > 0 && now.t_ns >= e.t_end_ns));
-            if let Some(ev) = ready.and_then(|i| self.pending[i].take()) {
+                .position(|p| p.is_some_and(|(e, _)| e.t_end_ns > 0 && now.t_ns >= e.t_end_ns));
+            if let Some((ev, draw)) = ready.and_then(|i| self.pending[i].take()) {
                 // Replay what happened between the onset and now.
                 self.p1_flag |= self
                     .p1_times
@@ -182,15 +188,12 @@ impl Hub {
                     .any(|&t| t >= ev.t_onset_ns && t <= now.t_ns && t > 0);
                 late_quality = self.last_power_bad_ns.is_some_and(|t| t >= ev.t_onset_ns);
                 match self.observer.open(&ev, &self.ring, self.grade) {
-                    Some(o) => {
-                        self.finish(&ev, o);
-                        return Some(o);
-                    }
-                    None => self.open_event = Some(ev),
+                    Some(o) => return Some(self.finish(&ev, o, draw)),
+                    None => self.open_event = Some((ev, draw)),
                 }
             }
         }
-        let ev = self.open_event?;
+        let (ev, draw) = self.open_event?;
         let ctx = ObsContext {
             ring: &self.ring,
             power_fresh: now.power_fresh && !late_quality,
@@ -204,8 +207,14 @@ impl Hub {
         };
         let o = self.observer.update(now.t_ns, &ctx)?;
         self.open_event = None;
-        self.finish(&ev, o);
-        Some(o)
+        Some(self.finish(&ev, o, draw))
+    }
+
+    /// The ride stopped with a window open: it cannot be scored.
+    pub fn abandon(&mut self) -> Option<Observed> {
+        let (ev, draw) = self.open_event.take()?;
+        let o = self.observer.abandon()?;
+        Some(self.finish(&ev, o, draw))
     }
 
     /// At a step boundary: the tuner (Coach only) over this profile's ledger.
@@ -213,9 +222,14 @@ impl Hub {
         self.tuner.step(&self.ledger, p, mode, profile, &CATALOGUE)
     }
 
-    fn finish(&mut self, ev: &CueEvent, o: CueOutcome) {
+    fn finish(&mut self, ev: &CueEvent, o: CueOutcome, draw_index: Option<u32>) -> Observed {
         self.ledger.record(ev, &o);
         self.last_outcome = Some(o);
+        Observed {
+            event: *ev,
+            outcome: o,
+            draw_index,
+        }
     }
 }
 

@@ -101,7 +101,7 @@ fn main() -> Result<()> {
                 }
             };
 
-            sim_cmd(scenario, persona, seed, mode)
+            sim_cmd(scenario, persona, seed, mode, flag("--jsonl"))
         }
         Some("golden") => golden(args.iter().any(|arg| arg == "--check")),
         Some("hex") => hex_cmd(&args[2..]),
@@ -189,6 +189,29 @@ fn replay_cmd(path: &str) -> Result<()> {
     anyhow::bail!("replay differs");
 }
 
+/// After run_sim: drain the Engine's ledger ring through the same writer the phone uses.
+fn write_jsonl(run: &mut vc_harness::SimRun, path: &str) -> Result<()> {
+    let mut writer = vc_report::Writer::new("R01", None);
+    let mut buf = [vc_core::LedgerRecord::SessionEnd {
+        t_ns: 0,
+        cues: 0,
+        dropped: 0,
+    }; 64];
+    let mut text = String::new();
+    loop {
+        let n = run.engine.ledger_pop(&mut buf);
+        if n == 0 {
+            break;
+        }
+        for r in &buf[..n] {
+            text.push_str(&vc_report::to_json(&writer.line(r)));
+            text.push('\n');
+        }
+    }
+    std::fs::write(path, text)?;
+    Ok(())
+}
+
 fn persona_code(name: &str) -> Result<u8> {
     vc_sim::Persona::ALL
         .iter()
@@ -197,8 +220,18 @@ fn persona_code(name: &str) -> Result<u8> {
         .with_context(|| format!("persona must be dana, sam, ned or calib, not '{name}'"))
 }
 
-fn sim_cmd(scenario: &str, persona: u8, seed: Option<u64>, mode: Mode) -> Result<()> {
-    let run = run_sim(scenario, persona, seed, mode)?;
+fn sim_cmd(
+    scenario: &str,
+    persona: u8,
+    seed: Option<u64>,
+    mode: Mode,
+    jsonl: Option<&str>,
+) -> Result<()> {
+    let mut run = run_sim(scenario, persona, seed, mode)?;
+
+    if let Some(path) = jsonl {
+        write_jsonl(&mut run, path)?;
+    }
 
     print!("{}", vc_core::golden::HEADER);
 

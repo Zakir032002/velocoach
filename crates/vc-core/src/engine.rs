@@ -14,7 +14,8 @@ use vc_physio::{
 use crate::config::EngineConfig;
 use crate::decision::CueDecision;
 use crate::directive::{Candidate, Candidates, Directive, Directives, Inputs};
-use crate::efficacy::{Hub, Now};
+use crate::efficacy::{Hub, Now, Observed};
+use crate::ledger_ring::{LedgerRecord, LedgerRing, OnsetSource};
 use crate::smooth::Smooth3s;
 use crate::workout::{Progress, WorkoutPlan};
 
@@ -116,6 +117,9 @@ pub struct Engine {
     hub: Hub,
     last_step: Option<usize>,
     last_tuning: Option<vc_efficacy::TunerReport>,
+    ring: LedgerRing,
+    mode_seed: u64,
+    route_delay_known: bool,
 }
 
 impl Engine {
@@ -150,6 +154,9 @@ impl Engine {
             hub: Hub::default(),
             last_step: None,
             last_tuning: None,
+            ring: LedgerRing::default(),
+            mode_seed: 0,
+            route_delay_known: false,
         })
     }
 
@@ -164,6 +171,13 @@ impl Engine {
     /// Start the workout clock: the plan's second zero.
     pub fn start(&mut self, t_ns: u64) {
         self.progress.start(t_ns);
+        self.ring.push(LedgerRecord::SessionStart {
+            t_ns,
+            mode: self.mode,
+            seed: self.mode_seed,
+            policy_hash: self.policy.hash(),
+            profile: self.profile_code(),
+        });
     }
 
     /// Consume one GATT payload and return at most one decision.
@@ -340,12 +354,14 @@ impl Engine {
             self.hub
                 .on_decision(&d, self.profile_code(), lead_ns, self.cfg.est_phrase_ns);
         }
-        let _ = self.hub.update(Now {
+        if let Some(obs) = self.hub.update(Now {
             t_ns: t,
             power_fresh: self.fresh(Ch::Power),
             power_w: self.power_w,
             cadence_rpm: self.fresh(Ch::Cadence).then(|| self.cadence.rpm()),
-        });
+        }) {
+            self.push_cue(obs);
+        }
         self.at_step_boundary(inputs.step.map(|s| s.index));
         decision
     }
@@ -370,7 +386,49 @@ impl Engine {
             self.cfg.prompt_surge_countdown_s = t.surge_lead_s; // the directives read it from cfg
             self.policy.apply_tunable(&t);
             self.last_tuning = Some(report);
+            for change in report.iter() {
+                self.ring.push(LedgerRecord::TunerChange {
+                    t_ns: self.last_t,
+                    change: *change,
+                    policy_hash_after: self.policy.hash(),
+                });
+            }
         }
+    }
+
+    fn push_cue(&mut self, o: Observed) {
+        let onset_source = if o.event.is_sham {
+            OnsetSource::Virtual
+        } else if self.route_delay_known {
+            OnsetSource::Loopback
+        } else {
+            OnsetSource::Scheduled
+        };
+        self.ring.push(LedgerRecord::Cue {
+            event: o.event,
+            outcome: o.outcome,
+            draw_index: o.draw_index,
+            onset_source,
+            sync_bound_us: 0,  // Day 15: the clock-sync bound for this cue
+            dropped_before: 0, // filled in by the ring
+        });
+    }
+
+    /// The ride is over: close any open window and mark the end.
+    pub fn end_session(&mut self, t_ns: u64) {
+        if let Some(obs) = self.hub.abandon() {
+            self.push_cue(obs);
+        }
+        self.ring.push(LedgerRecord::SessionEnd {
+            t_ns,
+            cues: self.ring.cues(),
+            dropped: self.ring.dropped(),
+        });
+    }
+
+    /// Drain up to `out.len()` ledger records. Never allocates.
+    pub fn ledger_pop(&mut self, out: &mut [LedgerRecord]) -> usize {
+        self.ring.pop_into(out)
     }
 
     fn profile_code(&self) -> u8 {
@@ -451,6 +509,7 @@ impl Engine {
 
         self.policy.set_mode(mode, seed);
         self.mode = mode;
+        self.mode_seed = seed;
         Ok(())
     }
 
@@ -495,7 +554,9 @@ impl Engine {
         });
 
         self.policy.audio_finished(cue_id, t);
-        let _ = self.hub.on_cue_failed(cue_id);
+        if let Some(obs) = self.hub.on_cue_failed(cue_id) {
+            self.push_cue(obs);
+        }
     }
 
     pub fn last_audio(&self) -> Option<AudioEvent> {

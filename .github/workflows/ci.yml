@@ -49,6 +49,13 @@ jobs:
       - name: Check golden logs
         run: cargo run -q -p vc-cli -- golden --check
 
+      - name: E6 byte-identical ledger (same seed, both OSes)
+        run: |
+          cargo run -q -p vc-cli -- sim --scenario creep --mode study --seed 11 --jsonl /tmp/a.jsonl
+          cargo run -q -p vc-cli -- sim --scenario creep --mode study --seed 11 --jsonl /tmp/b.jsonl
+          cmp /tmp/a.jsonl /tmp/b.jsonl
+          cmp /tmp/a.jsonl golden/creep_study_11.jsonl
+
       - name: Build no_std crates for Cortex-M4F
         run: >
           cargo build
@@ -58,6 +65,16 @@ jobs:
           -p vc-core
           -p vc-sim
           --target thumbv7em-none-eabihf
+
+  release-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - name: E1 (observer ground truth) and E8 (null persona coverage)
+        run: cargo test --release -p vc-harness --test e1 -p vc-report --test e8
 
   fuzz-smoke:
     name: Fuzz smoke tests

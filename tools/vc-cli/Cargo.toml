@@ -11,4 +11,5 @@ anyhow = { workspace = true }
 vc-sim = { path = "../../crates/vc-sim" }
 vc-gatt = { path = "../../crates/vc-gatt" }
 vc-harness = { path = "../../crates/vc-harness" }
+vc-report = { path = "../../crates/vc-report" }
 heapless = { workspace = true }

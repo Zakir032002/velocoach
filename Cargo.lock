@@ -1081,6 +1081,7 @@ dependencies = [
  "vc-core",
  "vc-gatt",
  "vc-harness",
+ "vc-report",
  "vc-sim",
 ]
 
@@ -1114,6 +1115,7 @@ dependencies = [
  "vc-core",
  "vc-efficacy",
  "vc-gatt",
+ "vc-report",
  "vc-sim",
 ]
 
@@ -1142,6 +1144,17 @@ version = "0.1.0"
 dependencies = [
  "libm",
  "proptest",
+]
+
+[[package]]
+name = "vc-report"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "serde",
+ "serde_json",
+ "vc-core",
+ "vc-efficacy",
 ]
 
 [[package]]

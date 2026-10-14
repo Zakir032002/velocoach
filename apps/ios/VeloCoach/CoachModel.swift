@@ -45,6 +45,8 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
             self.ble.write(encodeStop(), withResponse: true)
             self.timer?.cancel()
             self.timer = nil
+            self.engine?.endSession(tNs: Clock.nowNs())
+            self.drainLedger(close: true)
             self.flushCapture(close: true)
             self.engine = nil
         }
@@ -98,9 +100,10 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         }
         tickCount += 1
         if tickCount % 4 == 0 {
-            let l = e.latencySummary(segment: .t1T2)
+            let l = e.latencySummary(segment: .t1t2)
             DispatchQueue.main.async { self.t1t2 = l }
             flushCapture()
+            drainLedger()
         }
     }
 
@@ -108,7 +111,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         guard let e = engine else { return }
         let d = e.ingest(tNs: t1, source: source, bytes: bytes)
         let t2 = Clock.nowNs() // T2: the Engine has decided
-        e.recordLatency(segment: .t1T2, ns: t2 - t1)
+        e.recordLatency(segment: .t1t2, ns: t2 - t1)
         if let d { handle(d, at: t1) }
         if t1 > lastTick + 300_000_000 { tick(t1) }
     }
@@ -140,16 +143,33 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     // MARK: capture (io.q)
     private let io = DispatchQueue(label: "io.q", qos: .utility)
     private var captureFile: FileHandle? // io.q only
+    private var ledgerFile: FileHandle? // io.q only
 
     private func openCapture() {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("captures", isDirectory: true)
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let url = dir.appendingPathComponent("ride-\(stamp).vcraw")
+        let ledgerUrl = dir.appendingPathComponent("ledger-\(stamp).jsonl")
         io.async {
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             FileManager.default.createFile(atPath: url.path, contents: nil)
             self.captureFile = try? FileHandle(forWritingTo: url)
+            FileManager.default.createFile(atPath: ledgerUrl.path, contents: nil)
+            self.ledgerFile = try? FileHandle(forWritingTo: ledgerUrl)
+        }
+    }
+
+    /// About once a second, on ble.q: the ledger records as JSONL, appended on io.q.
+    private func drainLedger(close: Bool = false) {
+        guard let e = engine else { return }
+        let text = e.drainLedgerJsonl(max: 256)
+        io.async {
+            if !text.isEmpty, let data = text.data(using: .utf8) { try? self.ledgerFile?.write(contentsOf: data) }
+            if close {
+                try? self.ledgerFile?.close()
+                self.ledgerFile = nil
+            }
         }
     }
 
