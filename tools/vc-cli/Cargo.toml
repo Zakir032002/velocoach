@@ -10,4 +10,5 @@ vc-core = { path = "../../crates/vc-core", features = ["testkit"] }
 anyhow = { workspace = true }
 vc-sim = { path = "../../crates/vc-sim" }
 vc-gatt = { path = "../../crates/vc-gatt" }
+vc-harness = { path = "../../crates/vc-harness" }
 heapless = { workspace = true }

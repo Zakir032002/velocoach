@@ -10,6 +10,7 @@ pub mod capture;
 pub mod config;
 pub mod decision;
 pub mod directive;
+pub mod efficacy;
 pub mod engine;
 pub mod golden;
 pub mod hysteresis;

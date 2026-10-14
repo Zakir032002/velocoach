@@ -225,10 +225,8 @@ impl Observer {
             w.confound.insert(Confound::OVERLAP);
             return Some(invalid(ev));
         }
-        let scoreable = ev.priority != 1
-            && (ev.dir == 1 || ev.dir == -1)
-            && ev.t_onset_ns > 0
-            && ev.t_end_ns >= ev.t_onset_ns;
+        let scoreable =
+            (ev.dir == 1 || ev.dir == -1) && ev.t_onset_ns > 0 && ev.t_end_ns >= ev.t_onset_ns;
         if !scoreable {
             return Some(invalid(ev));
         }

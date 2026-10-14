@@ -5,11 +5,15 @@
 #![forbid(unsafe_code)]
 #![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic)]
 
+pub mod ledger;
 pub mod observer;
 pub mod p3;
+pub mod tuner;
 
+pub use ledger::{Counts, Key, Ledger, Stats};
 pub use observer::{ObsContext, Observer};
 pub use p3::P3Ring;
+pub use tuner::{Catalogue, Change, Param, Rule, TunablePolicy, Tuner, TunerReport};
 
 pub const OBSERVER_VERSION: &str = "vc-efficacy 0.2.0";
 

@@ -14,6 +14,7 @@ use vc_physio::{
 use crate::config::EngineConfig;
 use crate::decision::CueDecision;
 use crate::directive::{Candidate, Candidates, Directive, Directives, Inputs};
+use crate::efficacy::{Hub, Now};
 use crate::smooth::Smooth3s;
 use crate::workout::{Progress, WorkoutPlan};
 
@@ -112,6 +113,9 @@ pub struct Engine {
     last: Option<CueDecision>,
     mode: Mode,
     last_audio: Option<AudioEvent>,
+    hub: Hub,
+    last_step: Option<usize>,
+    last_tuning: Option<vc_efficacy::TunerReport>,
 }
 
 impl Engine {
@@ -143,6 +147,9 @@ impl Engine {
             cfg,
             mode: Mode::Coach,
             last_audio: None,
+            hub: Hub::default(),
+            last_step: None,
+            last_tuning: None,
         })
     }
 
@@ -292,6 +299,10 @@ impl Engine {
             self.wbal.update(t, self.power_w);
         }
 
+        if ok && self.fresh(Ch::Power) {
+            self.hub.on_power(t, self.power_w);
+        }
+
         if let Some(c) = m.crank {
             let good = !matches!(
                 self.cadence.push(c.revs, c.time_1024, t),
@@ -323,12 +334,51 @@ impl Engine {
             .evaluate(&inputs, &self.cfg, &mut self.candidates);
 
         let decision = self.policy.decide(t, &mut self.candidates);
-
-        if decision.is_some() {
-            self.last = decision;
+        if let Some(d) = decision {
+            self.last = Some(d);
+            let lead_ns = u64::from(d.lead_ms) * 1_000_000;
+            self.hub
+                .on_decision(&d, self.profile_code(), lead_ns, self.cfg.est_phrase_ns);
         }
-
+        let _ = self.hub.update(Now {
+            t_ns: t,
+            power_fresh: self.fresh(Ch::Power),
+            power_w: self.power_w,
+            cadence_rpm: self.fresh(Ch::Cadence).then(|| self.cadence.rpm()),
+        });
+        self.at_step_boundary(inputs.step.map(|s| s.index));
         decision
+    }
+
+    // 3. the boundary
+    fn at_step_boundary(&mut self, step: Option<usize>) {
+        if step == self.last_step {
+            return;
+        }
+        let first = self.last_step.is_none();
+        self.last_step = step;
+        if first {
+            return; // the ride's first step is not a boundary
+        }
+        let mut t = self.policy.tunable(
+            self.cfg.cooldown_between_alerts_s,
+            self.cfg.prompt_surge_countdown_s,
+        );
+        let report = self.hub.boundary(self.mode, self.profile_code(), &mut t);
+        if !report.is_empty() {
+            self.cfg.cooldown_between_alerts_s = t.cooldown_s;
+            self.cfg.prompt_surge_countdown_s = t.surge_lead_s; // the directives read it from cfg
+            self.policy.apply_tunable(&t);
+            self.last_tuning = Some(report);
+        }
+    }
+
+    fn profile_code(&self) -> u8 {
+        match self.cfg.profile {
+            Profile::Solo => 0,
+            Profile::Rolling => 1,
+            Profile::Group => 2,
+        }
     }
 
     fn inputs(&self, t: u64) -> Inputs {
@@ -429,6 +479,7 @@ impl Engine {
         });
 
         self.policy.audio_finished(cue_id, t_end_ns);
+        self.hub.on_cue_played(cue_id, t_onset_ns, t_end_ns);
     }
 
     /// The clip did not play to the end: the observer will mark it Invalid.
@@ -444,9 +495,32 @@ impl Engine {
         });
 
         self.policy.audio_finished(cue_id, t);
+        let _ = self.hub.on_cue_failed(cue_id);
     }
 
     pub fn last_audio(&self) -> Option<AudioEvent> {
         self.last_audio
+    }
+
+    // 5. accessors
+    pub fn last_outcome(&self) -> Option<vc_efficacy::CueOutcome> {
+        self.hub.last_outcome()
+    }
+
+    pub fn ledger(&self) -> &vc_efficacy::Ledger {
+        self.hub.ledger()
+    }
+
+    pub fn last_tuning(&self) -> Option<vc_efficacy::TunerReport> {
+        self.last_tuning
+    }
+
+    pub fn set_grade(&mut self, grade_pct: Option<f64>) {
+        self.hub.set_grade(grade_pct)
+    }
+
+    #[cfg(feature = "testkit")]
+    pub fn hub_mut(&mut self) -> &mut Hub {
+        &mut self.hub
     }
 }

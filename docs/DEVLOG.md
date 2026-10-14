@@ -112,3 +112,15 @@
 - Decision: a hole in the power data is a quality confounder, never a verdict
 - Broke: __
 - Tomorrow: ledger + tuner, E3/E4, Engine integration, E1, E2
+
+## Day 13 — 2026-10-__ (v-final plan)
+- Done: vc-efficacy ledger (Beta, 16-entry L_obs ring, lag-corrected fast counts) and tuner (T1/T1', T2, T2-P3, T3, T4, n >= 8, 8 new cues between moves, frozen in Study/Replay); vc-core efficacy hub (observed cues, pending -> open at audio end, late confounders replayed, step-boundary tuning); vc-harness; testkit rides play their cues
+- E1 (20 seeds x 200 cues): compliance __..__ (target 0.70 +/- 0.08), latency __..__ s (3.0 +/- 0.5) -> table in EFFICACY.md
+- E2: 6 confounders through the Engine, control Ignored; OVERLAP unit-tested only (not producible)
+- E3: 32 random ledgers x 9 boundaries: safety untouched, safety cue at 122 s every time
+- E4: 512 cases in bounds; Study/Replay frozen
+- Decision: the surge's "Go now" is observed (T1 needs it); every other P1 cue is not
+- Decision: tuner latency thresholds use L_obs - smoothing lag
+- Checkpoint: E1-E4 green -> IPS allowed on Day 14 H6: yes/no
+- Broke: __
+- Tomorrow: ledger ring, vc-report (schema, JSONL, stats, html, audit), E6, E8, gate G-14

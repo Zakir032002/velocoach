@@ -173,11 +173,6 @@ fn a_hole_in_the_window_is_a_quality_confounder() {
 
 #[test]
 fn cues_that_cannot_be_scored_are_invalid() {
-    let p1 = CueEvent {
-        priority: 1,
-        ..event(100_000, 102_000, -1, 25.0)
-    };
-    assert_eq!(ride(&p1, |_| 200.0).verdict, Verdict::Invalid);
     assert_eq!(
         ride(&event(100_000, 102_000, 0, 25.0), |_| 200.0).verdict,
         Verdict::Invalid

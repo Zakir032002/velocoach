@@ -1080,6 +1080,7 @@ dependencies = [
  "heapless",
  "vc-core",
  "vc-gatt",
+ "vc-harness",
  "vc-sim",
 ]
 
@@ -1122,6 +1123,17 @@ version = "0.1.0"
 dependencies = [
  "heapless",
  "proptest",
+]
+
+[[package]]
+name = "vc-harness"
+version = "0.1.0"
+dependencies = [
+ "heapless",
+ "vc-core",
+ "vc-efficacy",
+ "vc-gatt",
+ "vc-sim",
 ]
 
 [[package]]

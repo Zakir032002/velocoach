@@ -236,6 +236,36 @@ impl Policy {
     }
 
     /// M4: every Study session must report the same value.
+    /// The tuner's view of this policy (codes, not slots).
+    pub fn tunable(&self, cooldown_s: f64, surge_lead_s: f64) -> vc_efficacy::TunablePolicy {
+        let to_codes = |mask: u8| {
+            Directive::ALL
+                .iter()
+                .filter(|d| mask & (1 << d.slot()) != 0)
+                .fold(0u64, |m, d| m | 1u64 << d.code())
+        };
+        vc_efficacy::TunablePolicy {
+            cooldown_s,
+            surge_lead_s,
+            p3_earcon: to_codes(self.params.p3_earcon_mask),
+            autonomy_default: to_codes(self.params.autonomy_default_mask),
+        }
+    }
+
+    /// Apply what the tuner decided. Only these four things can change.
+    pub fn apply_tunable(&mut self, t: &vc_efficacy::TunablePolicy) {
+        let to_slots = |codes: u64| {
+            Directive::ALL
+                .iter()
+                .filter(|d| codes & (1u64 << d.code()) != 0)
+                .fold(0u8, |m, d| m | 1 << d.slot())
+        };
+        self.params.cooldown_ns = (t.cooldown_s * 1e9) as u64;
+        self.params.p3_earcon_mask = to_slots(t.p3_earcon);
+        self.params.autonomy_default_mask = to_slots(t.autonomy_default);
+        self.surge_lead_s = t.surge_lead_s;
+    }
+
     pub fn hash(&self) -> u64 {
         let mut h = Fnv1a::default();
 

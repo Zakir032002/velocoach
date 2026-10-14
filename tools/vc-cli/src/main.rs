@@ -1,160 +1,19 @@
 use anyhow::{Context, Result, anyhow};
-use vc_core::engine::AudioFailure;
-use vc_core::{Arm, CueDecision, Engine, EngineConfig, Mode, Snapshot, Source};
-use vc_gatt::{Channel, Ctrl, MAX_PAYLOAD, encode_ctrl};
-use vc_sim::sim::MAX_OUT;
-use vc_sim::{Outcome, ResponseRecord, SimPacket, Simulator, scenario};
+use vc_core::Mode;
+use vc_gatt::{Ctrl, MAX_PAYLOAD, encode_ctrl};
+use vc_harness::{RunOpts, SimRun};
+use vc_sim::Outcome;
 
-const MS: u64 = 1_000_000;
-const S: u64 = 1_000_000_000;
-const ASSUMED_CLIP_MS: u16 = 2_400;
-
-pub struct SimRun {
-    pub decisions: Vec<CueDecision>,
-    pub truth: Vec<ResponseRecord>,
-    pub snapshot: Snapshot,
-}
-
-struct Harness {
-    sim: Simulator,
-    engine: Engine,
-    playing: Vec<(u64, u64, u32)>, // (audio end time, cue ID)
-    decisions: Vec<CueDecision>,
-}
-impl Harness {
-    fn finish_due(&mut self, t: u64) {
-        let engine = &mut self.engine;
-
-        self.playing.retain(|&(onset, end, id)| {
-            let done = end <= t;
-            if done {
-                engine.on_cue_played(id, onset, end, end);
-            }
-            !done
-        });
-    }
-
-    fn play(&mut self, t: u64, d: CueDecision) -> Result<()> {
-        self.decisions.push(d);
-
-        // Sham decisions have no audio and are not sent to the rider.
-        if d.arm == Arm::Sham {
-            return Ok(());
-        }
-
-        // A P1 interrupt terminates whatever clip is currently playing.
-        if d.interrupt {
-            for (_, _, id) in self.playing.drain(..) {
-                self.engine.on_cue_failed(id, AudioFailure::Interrupted);
-            }
-        }
-
-        let onset = t + u64::from(d.lead_ms) * MS;
-        let end = onset + u64::from(ASSUMED_CLIP_MS) * MS;
-        self.playing.push((onset, end, d.id));
-
-        let delta_w = d
-            .delta_star_w
-            .round()
-            .clamp(f64::from(i16::MIN), f64::from(i16::MAX)) as i16;
-
-        let msg = Ctrl::CuePlayed {
-            cue_id: d.id,
-            kind: d.directive.code(),
-            dir: d.dir,
-            delta_w,
-            arm: arm_code(d.arm),
-            starts_in_ms: d.lead_ms,
-            dur_ms: ASSUMED_CLIP_MS,
-        };
-
-        let mut bytes = [0u8; MAX_PAYLOAD];
-        let n = encode_ctrl(&msg, &mut bytes).map_err(|e| anyhow!("{e:?}"))?;
-
-        self.sim
-            .apply_ctrl(t, &bytes[..n])
-            .map_err(|e| anyhow!("{e}"))?;
-
-        Ok(())
-    }
-}
-
-/// Run the Engine and Simulator together using virtual time.
+/// Run the Engine and Simulator together using virtual time (see vc-harness).
 fn run_sim(name: &str, persona: u8, seed: Option<u64>, mode: Mode) -> Result<SimRun> {
-    let sc = scenario::by_name(name).with_context(|| format!("no scenario named '{name}'"))?;
-
-    let sim = Simulator::new(sc.id, persona, seed, false).map_err(|e| anyhow!("{e}"))?;
-
-    let cfg = EngineConfig {
-        profile: sc.profile,
-        ..EngineConfig::default()
-    };
-
-    let mut engine = Engine::new(cfg, sim.plan()).map_err(|e| anyhow!("{e}"))?;
-
-    if mode == Mode::Study {
-        engine
-            .set_mode(mode, seed.unwrap_or(0))
-            .map_err(|e| anyhow!("{e}"))?;
-    }
-    let mut h = Harness {
-        sim,
-        engine,
-        playing: Vec::new(),
-        decisions: Vec::new(),
-    };
-
-    h.sim.start(0);
-    h.engine.start(0);
-
-    let mut out = heapless::Vec::<SimPacket, MAX_OUT>::new();
-    let end = sc.total_ns() + 5 * S;
-    let mut t = 0u64;
-
-    while t <= end {
-        // 1. Complete clips whose simulated audio has ended.
-        h.finish_due(t);
-
-        // 2. Generate sensor packets and ingest them into the Engine.
-        h.sim.step_into(t, &mut out);
-
-        for packet in out.iter() {
-            let source = match packet.channel {
-                Channel::Hrm => Source::Hr,
-                Channel::Cpm => Source::Power,
-                Channel::Csc => Source::Csc,
-            };
-
-            if let Ok(Some(decision)) = h.engine.ingest(t, source, &packet.bytes) {
-                h.play(t, decision)?;
-            }
-        }
-
-        // 3. Run the policy engine every 250 ms.
-        if t.is_multiple_of(250 * MS)
-            && let Some(decision) = h.engine.tick(t)
-        {
-            h.play(t, decision)?;
-        }
-
-        // Advance virtual time by 50 ms. Never sleep.
-        t += 50 * MS;
-    }
-
-    Ok(SimRun {
-        truth: h.sim.responses().to_vec(),
-        snapshot: h.engine.snapshot(),
-        decisions: h.decisions,
+    vc_harness::run_sim(RunOpts {
+        scenario: name,
+        persona,
+        seed,
+        mode,
+        mode_seed: seed.unwrap_or(0),
     })
-}
-
-fn arm_code(arm: Arm) -> u8 {
-    match arm {
-        Arm::None => 0,
-        Arm::Direct => 1,
-        Arm::Autonomy => 2,
-        Arm::Sham => 3,
-    }
+    .map_err(|e| anyhow!(e))
 }
 
 /// Write golden/<name>.log, or with --check compare and fail on any difference.

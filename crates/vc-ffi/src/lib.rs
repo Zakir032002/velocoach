@@ -402,7 +402,17 @@ impl Engine {
 
     /// Day 12: the observer's latest verdict.
     pub fn last_outcome(&self) -> Option<CueOutcomeFfi> {
-        None
+        let o = lock(&self.inner).last_outcome()?;
+        Some(CueOutcomeFfi {
+            cue_id: o.cue_id,
+            verdict: o.verdict.name().to_string(),
+            l_obs_ms: o.l_obs_ms,
+            confounds: vc_efficacy::Confound::ALL
+                .iter()
+                .filter(|(c, _)| o.confound.contains(*c))
+                .map(|(_, name)| name.to_string())
+                .collect(),
+        })
     }
 
     /// Day 14: the ledger summary.
