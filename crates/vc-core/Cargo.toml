@@ -13,6 +13,7 @@ testkit = []
 [dependencies]
 vc-gatt = { path = "../vc-gatt" }
 vc-physio = { path = "../vc-physio" }
+vc-efficacy = { path = "../vc-efficacy" }
 heapless = { workspace = true }
 libm = { workspace = true }
 

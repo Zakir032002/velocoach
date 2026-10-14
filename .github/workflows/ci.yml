@@ -4,10 +4,19 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
-  rust:
-    name: Rust checks and no_std build
-    runs-on: ubuntu-latest
+  test:
+    name: Rust checks (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-14
 
     steps:
       - name: Check out repository
@@ -19,6 +28,12 @@ jobs:
           targets: thumbv7em-none-eabihf
           components: rustfmt, clippy
 
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev pkg-config
+
       - name: Cache Rust build
         uses: Swatinem/rust-cache@v2
 
@@ -26,41 +41,98 @@ jobs:
         run: cargo fmt --all -- --check
 
       - name: Run Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
       - name: Test workspace
-        run: cargo test --workspace
+        run: cargo test --workspace --all-features
 
-      - name: Golden logs (S5)
+      - name: Check golden logs
         run: cargo run -q -p vc-cli -- golden --check
 
-      - name: no_std build for a Cortex-M4F (S8)
-        run: cargo build -p vc-gatt -p vc-physio -p vc-core -p vc-sim --target thumbv7em-none-eabihf
+      - name: Build no_std crates for Cortex-M4F
+        run: >
+          cargo build
+          -p vc-gatt
+          -p vc-physio
+          -p vc-efficacy
+          -p vc-core
+          -p vc-sim
+          --target thumbv7em-none-eabihf
 
-  fuzz:
+  fuzz-smoke:
     name: Fuzz smoke tests
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out repository
+        uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
         with:
           targets: x86_64-unknown-linux-gnu
 
-      - uses: taiki-e/install-action@v2
+      - name: Install cargo-fuzz
+        uses: taiki-e/install-action@v2
         with:
           tool: cargo-fuzz
 
-      - uses: Swatinem/rust-cache@v2
+      - name: Cache fuzz builds
+        uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
             crates/vc-gatt/fuzz
             crates/vc-sim/fuzz
 
-      - name: 60 s per target
+      - name: Run fuzz smoke tests (60 seconds per target)
+        run: bash scripts/fuzz-all.sh 60
+
+  ios:
+    name: Build iOS XCFramework
+    runs-on: macos-14
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build iOS XCFramework and Swift bindings
+        run: bash scripts/build-ios.sh
+
+  android:
+    name: Build Android native library and Kotlin bindings
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Linux system dependencies
         run: |
-          for t in hrm cpm csc telem ctrl; do
-            (cd crates/vc-gatt && cargo fuzz run "$t" --target x86_64-unknown-linux-gnu -- -max_total_time=60)
-          done
-          (cd crates/vc-sim && cargo fuzz run vcsim --target x86_64-unknown-linux-gnu -- -max_total_time=60)
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev pkg-config
+
+      - name: Set up Android NDK
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27c
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Build Android native library and Kotlin bindings
+        run: bash scripts/build-android.sh
+        env:
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}

@@ -6,6 +6,10 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		0B025776307F816E0088D5D4 /* VcCore in Frameworks */ = {isa = PBXBuildFile; productRef = 0B025775307F816E0088D5D4 /* VcCore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		0B0257443074125B0088D5D4 /* BleProbe.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BleProbe.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -22,6 +26,7 @@
 		0B0257413074125B0088D5D4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			files = (
+				0B025776307F816E0088D5D4 /* VcCore in Frameworks */,
 			);
 		};
 /* End PBXFrameworksBuildPhase section */
@@ -60,6 +65,9 @@
 				0B0257463074125B0088D5D4 /* BleProbe */,
 			);
 			name = BleProbe;
+			packageProductDependencies = (
+				0B025775307F816E0088D5D4 /* VcCore */,
+			);
 			productName = BleProbe;
 			productReference = 0B0257443074125B0088D5D4 /* BleProbe.app */;
 			productType = "com.apple.product-type.application";
@@ -88,6 +96,9 @@
 			);
 			mainGroup = 0B02573B3074125B0088D5D4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				0B025774307F816D0088D5D4 /* XCLocalSwiftPackageReference "../VcCore" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 0B0257453074125B0088D5D4 /* Products */;
 			projectDirPath = "";
@@ -246,8 +257,11 @@
 				DEVELOPMENT_TEAM = 42H9VCQ78N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Reads simulated cycling sensors.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIBackgroundModes = "audio bluetooth-central";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -260,7 +274,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -278,8 +292,11 @@
 				DEVELOPMENT_TEAM = 42H9VCQ78N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Reads simulated cycling sensors.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UIBackgroundModes = "audio bluetooth-central";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -292,7 +309,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
@@ -320,6 +337,20 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		0B025774307F816D0088D5D4 /* XCLocalSwiftPackageReference "../VcCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../VcCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		0B025775307F816E0088D5D4 /* VcCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VcCore;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 0B02573C3074125B0088D5D4 /* Project object */;
 	validationLevel = 1;

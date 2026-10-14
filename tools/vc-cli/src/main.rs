@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, anyhow};
-use vc_core::{Arm, CueDecision, Engine, EngineConfig, Snapshot, Source};
+use vc_core::engine::AudioFailure;
+use vc_core::{Arm, CueDecision, Engine, EngineConfig, Mode, Snapshot, Source};
 use vc_gatt::{Channel, Ctrl, MAX_PAYLOAD, encode_ctrl};
 use vc_sim::sim::MAX_OUT;
 use vc_sim::{Outcome, ResponseRecord, SimPacket, Simulator, scenario};
@@ -17,17 +18,17 @@ pub struct SimRun {
 struct Harness {
     sim: Simulator,
     engine: Engine,
-    playing: Vec<(u64, u32)>, // (audio end time, cue ID)
+    playing: Vec<(u64, u64, u32)>, // (audio end time, cue ID)
     decisions: Vec<CueDecision>,
 }
 impl Harness {
     fn finish_due(&mut self, t: u64) {
         let engine = &mut self.engine;
 
-        self.playing.retain(|&(end, id)| {
+        self.playing.retain(|&(onset, end, id)| {
             let done = end <= t;
             if done {
-                engine.on_audio_finished(id, end);
+                engine.on_cue_played(id, onset, end, end);
             }
             !done
         });
@@ -43,13 +44,14 @@ impl Harness {
 
         // A P1 interrupt terminates whatever clip is currently playing.
         if d.interrupt {
-            for (_, id) in self.playing.drain(..) {
-                self.engine.on_audio_finished(id, t);
+            for (_, _, id) in self.playing.drain(..) {
+                self.engine.on_cue_failed(id, AudioFailure::Interrupted);
             }
         }
 
-        let end = t + (u64::from(d.lead_ms) + u64::from(ASSUMED_CLIP_MS)) * MS;
-        self.playing.push((end, d.id));
+        let onset = t + u64::from(d.lead_ms) * MS;
+        let end = onset + u64::from(ASSUMED_CLIP_MS) * MS;
+        self.playing.push((onset, end, d.id));
 
         let delta_w = d
             .delta_star_w
@@ -78,7 +80,7 @@ impl Harness {
 }
 
 /// Run the Engine and Simulator together using virtual time.
-fn run_sim(name: &str, persona: u8, seed: Option<u64>) -> Result<SimRun> {
+fn run_sim(name: &str, persona: u8, seed: Option<u64>, mode: Mode) -> Result<SimRun> {
     let sc = scenario::by_name(name).with_context(|| format!("no scenario named '{name}'"))?;
 
     let sim = Simulator::new(sc.id, persona, seed, false).map_err(|e| anyhow!("{e}"))?;
@@ -88,8 +90,13 @@ fn run_sim(name: &str, persona: u8, seed: Option<u64>) -> Result<SimRun> {
         ..EngineConfig::default()
     };
 
-    let engine = Engine::new(cfg, sim.plan()).map_err(|e| anyhow!("{e}"))?;
+    let mut engine = Engine::new(cfg, sim.plan()).map_err(|e| anyhow!("{e}"))?;
 
+    if mode == Mode::Study {
+        engine
+            .set_mode(mode, seed.unwrap_or(0))
+            .map_err(|e| anyhow!("{e}"))?;
+    }
     let mut h = Harness {
         sim,
         engine,
@@ -166,7 +173,7 @@ fn golden(check: bool) -> Result<()> {
 
     for name in GOLDEN {
         // Use the scenario's default persona and seed.
-        let run = run_sim(name, 0, None)?;
+        let run = run_sim(name, 0, None, Mode::Coach)?;
 
         let mut text = String::from(vc_core::golden::HEADER);
         for decision in &run.decisions {
@@ -227,7 +234,15 @@ fn main() -> Result<()> {
 
             let seed = flag("--seed").map(str::parse).transpose()?;
 
-            sim_cmd(scenario, persona, seed)
+            let mode = match flag("--mode") {
+                None | Some("coach") => Mode::Coach,
+                Some("study") => Mode::Study,
+                Some(other) => {
+                    return Err(anyhow!("mode must be coach or study, not '{other}'"));
+                }
+            };
+
+            sim_cmd(scenario, persona, seed, mode)
         }
         Some("golden") => golden(args.iter().any(|arg| arg == "--check")),
         _ => {
@@ -248,8 +263,8 @@ fn persona_code(name: &str) -> Result<u8> {
         .with_context(|| format!("persona must be dana, sam, ned or calib, not '{name}'"))
 }
 
-fn sim_cmd(scenario: &str, persona: u8, seed: Option<u64>) -> Result<()> {
-    let run = run_sim(scenario, persona, seed)?;
+fn sim_cmd(scenario: &str, persona: u8, seed: Option<u64>, mode: Mode) -> Result<()> {
+    let run = run_sim(scenario, persona, seed, mode)?;
 
     print!("{}", vc_core::golden::HEADER);
 

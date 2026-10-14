@@ -23,8 +23,9 @@ pub mod testkit;
 pub mod workout;
 
 pub use config::{EngineConfig, Profile, ProfileParams, Verbosity};
-pub use decision::{Arm, CueDecision};
+pub use decision::CueDecision;
 pub use directive::{AkiClass, Directive, Priority, SurgePhase};
 pub use engine::{Engine, EngineError, Snapshot, Source};
 pub use phrase::{Earcon, PhraseId};
+pub use vc_efficacy::{Arm, Confound, CueEvent, CueOutcome, Mode, Verdict};
 pub use workout::{Step, StepKind, WorkoutPlan};

@@ -1,10 +1,12 @@
 //! The Policy Engine: directives in, at most one spoken cue out.
 //! This is the only place profiles, cooldowns, and phrasing meet.
 
-use crate::config::{EngineConfig, ProfileParams};
-use crate::decision::{Arm, CueDecision};
+use crate::config::{EngineConfig, Profile, ProfileParams};
+use crate::decision::CueDecision;
 use crate::directive::{Candidate, Candidates, Directive, Priority};
 use crate::phrase::{earcon_for, phrase_for};
+use crate::study::{Allocation, Fnv1a, NOT_RANDOMISED_Q16, StudyAllocator};
+use vc_efficacy::{Arm, Mode};
 
 /// Explore each phrasing this many times per directive before using the default.
 pub const EXPLORE_PER_VARIANT: u16 = 8;
@@ -41,6 +43,10 @@ pub struct Policy {
     window_until: u64,
     /// Delivered counts per directive slot: [Direct, Autonomy].
     delivered: [[u16; 2]; Directive::COUNT],
+    mode: Mode,
+    allocator: Option<StudyAllocator>,
+    surge_lead_s: f64,
+    profile_code: u8,
 }
 
 impl Policy {
@@ -61,6 +67,14 @@ impl Policy {
             cooldown_until: 0,
             window_until: 0,
             delivered: [[0; 2]; Directive::COUNT],
+            mode: Mode::Coach,
+            allocator: None,
+            surge_lead_s: cfg.prompt_surge_countdown_s,
+            profile_code: match cfg.profile {
+                Profile::Solo => 0,
+                Profile::Rolling => 1,
+                Profile::Group => 2,
+            },
         }
     }
 
@@ -105,6 +119,21 @@ impl Policy {
 
         // 6–7. Select the most urgent remaining candidate and its phrasing arm.
         let c = cands.take_most_urgent()?;
+
+        if self.mode == Mode::Study
+            && c.directive.priority() == Priority::P2
+            && let Some(a) = self.allocator.as_mut().map(StudyAllocator::draw)
+        {
+            if a.arm == Arm::Sham {
+                return Some(self.emit_sham(t, c, a));
+            }
+
+            let mut d = self.emit(t, c, a.arm, false);
+            d.propensity_q16 = a.propensity_q16;
+            d.draw_index = Some(a.draw_index);
+            return Some(d);
+        }
+
         let arm = self.choose_arm(c.directive);
         Some(self.emit(t, c, arm, false))
     }
@@ -192,6 +221,70 @@ impl Policy {
             earcon: earcon_for(c.directive, self.params.p3_earcon_mask),
             lead_ms: self.lead_ms,
             interrupt,
+            propensity_q16: NOT_RANDOMISED_Q16,
+            draw_index: None,
+        }
+    }
+    /// Only between sessions; the Engine enforces that.
+    pub fn set_mode(&mut self, mode: Mode, seed: u64) {
+        self.mode = mode;
+        self.allocator = (mode == Mode::Study).then(|| StudyAllocator::new(seed));
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
+    /// M4: every Study session must report the same value.
+    pub fn hash(&self) -> u64 {
+        let mut h = Fnv1a::default();
+
+        h.write(&[self.profile_code]);
+        h.write_u64(self.params.cooldown_ns);
+        h.write_u64(libm::round(self.surge_lead_s * 1000.0) as u64);
+        h.write(&[
+            self.params.p3_earcon_mask,
+            self.params.autonomy_default_mask,
+        ]);
+
+        for value in [
+            self.stale_ns,
+            self.est_phrase_ns,
+            self.window_ns,
+            u64::from(self.lead_ms),
+        ] {
+            h.write_u64(value);
+        }
+
+        h.finish()
+    }
+    /// Study sham: nothing plays, nothing is sent, but the decision point
+    /// uses up the cooldown and opens an observer window from a virtual
+    /// onset and length.
+    fn emit_sham(&mut self, t: u64, c: Candidate, a: Allocation) -> CueDecision {
+        self.next_id += 1;
+
+        let virtual_end = t + u64::from(self.lead_ms) * 1_000_000 + self.est_phrase_ns;
+
+        self.cooldown_until = virtual_end.saturating_add(self.params.cooldown_ns);
+        self.window_until = virtual_end.saturating_add(self.window_ns);
+
+        CueDecision {
+            id: self.next_id,
+            directive: c.directive,
+            priority: c.directive.priority(),
+            aki_class: c.directive.aki_class(),
+            dir: c.dir,
+            delta_star_w: c.delta_star_w,
+            surge: c.surge,
+            decided_ns: t,
+            arm: Arm::Sham,
+            phrase: phrase_for(c.directive, Arm::Direct, c.surge),
+            earcon: None,
+            lead_ms: self.lead_ms,
+            interrupt: false,
+            propensity_q16: a.propensity_q16,
+            draw_index: Some(a.draw_index),
         }
     }
 }

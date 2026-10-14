@@ -1,7 +1,7 @@
 //! What the Engine hands to the platform: at most one per call.
 
 use crate::directive::{AkiClass, Directive, Priority, SurgePhase};
-
+pub use vc_efficacy::Arm;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CueDecision {
     pub id: u32,
@@ -18,12 +18,13 @@ pub struct CueDecision {
     pub earcon: Option<crate::phrase::Earcon>,
     pub lead_ms: u16,
     pub interrupt: bool,
+
+    pub propensity_q16: u16,
+    pub draw_index: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Arm {
-    None,
-    Direct,
-    Autonomy,
-    Sham,
+impl CueDecision {
+    pub fn is_sham(&self) -> bool {
+        self.arm == Arm::Sham
+    }
 }

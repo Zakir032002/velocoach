@@ -2,6 +2,10 @@
 //! ingest() handles every BLE packet; tick() runs four times per second.
 //! Each returns at most one CueDecision.
 
+use crate::config::Profile;
+use crate::policy::Policy;
+use crate::safety::RedlineGate;
+use vc_efficacy::Mode;
 use vc_gatt::{DecodeError, decode_cpm, decode_csc, decode_hrm};
 use vc_physio::{
     CadenceDeriver, CadenceUpdate, Quality, QualityTracker, WbalExact, WbalParams, WprimeBalance,
@@ -10,8 +14,6 @@ use vc_physio::{
 use crate::config::EngineConfig;
 use crate::decision::CueDecision;
 use crate::directive::{Candidate, Candidates, Directive, Directives, Inputs};
-use crate::policy::Policy;
-use crate::safety::RedlineGate;
 use crate::smooth::Smooth3s;
 use crate::workout::{Progress, WorkoutPlan};
 
@@ -28,6 +30,23 @@ pub enum EngineError {
     Decode(DecodeError),
     NonMonotonicTime { prev: u64, now: u64 },
     Config(&'static str),
+}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum AudioFailure {
+    Interrupted,
+    RouteLost,
+    EngineReset,
+    Other,
+}
+
+/// One clip's real timing, for the observer (Day 12).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AudioEvent {
+    pub cue_id: u32,
+    pub onset_ns: u64,
+    pub end_ns: u64,
+    pub callback_ns: u64,
+    pub failed: Option<AudioFailure>,
 }
 
 impl core::fmt::Display for EngineError {
@@ -91,6 +110,8 @@ pub struct Engine {
     decode_errors: u32,
     implausible: u32,
     last: Option<CueDecision>,
+    mode: Mode,
+    last_audio: Option<AudioEvent>,
 }
 
 impl Engine {
@@ -120,6 +141,8 @@ impl Engine {
             implausible: 0,
             last: None,
             cfg,
+            mode: Mode::Coach,
+            last_audio: None,
         })
     }
 
@@ -180,7 +203,7 @@ impl Engine {
 
     /// The audio player reports the actual end of a clip.
     pub fn on_audio_finished(&mut self, cue_id: u32, t_ns: u64) {
-        self.policy.audio_finished(cue_id, t_ns);
+        self.on_cue_played(cue_id, t_ns, t_ns, t_ns);
     }
 
     pub fn snapshot(&self) -> Snapshot {
@@ -361,5 +384,69 @@ impl Engine {
 
         self.last_t = t;
         Ok(())
+    }
+    /// Between sessions only. Study fixes the profile to Solo and starts
+    /// the allocator.
+    pub fn set_mode(&mut self, mode: Mode, seed: u64) -> Result<(), EngineError> {
+        if self.progress.elapsed_ns().is_some() {
+            return Err(EngineError::Config(
+                "set_mode is only allowed between sessions",
+            ));
+        }
+
+        if mode == Mode::Study {
+            self.cfg.profile = Profile::Solo;
+            self.policy = Policy::new(&self.cfg);
+        }
+
+        self.policy.set_mode(mode, seed);
+        self.mode = mode;
+        Ok(())
+    }
+
+    pub fn mode(&self) -> Mode {
+        self.mode
+    }
+
+    pub fn policy_hash(&self) -> u64 {
+        self.policy.hash()
+    }
+
+    /// The audio player reports a clip's real onset and end (both at the ear).
+    pub fn on_cue_played(
+        &mut self,
+        cue_id: u32,
+        t_onset_ns: u64,
+        t_end_ns: u64,
+        t_callback_ns: u64,
+    ) {
+        self.last_audio = Some(AudioEvent {
+            cue_id,
+            onset_ns: t_onset_ns,
+            end_ns: t_end_ns,
+            callback_ns: t_callback_ns,
+            failed: None,
+        });
+
+        self.policy.audio_finished(cue_id, t_end_ns);
+    }
+
+    /// The clip did not play to the end: the observer will mark it Invalid.
+    pub fn on_cue_failed(&mut self, cue_id: u32, reason: AudioFailure) {
+        let t = self.last_t;
+
+        self.last_audio = Some(AudioEvent {
+            cue_id,
+            onset_ns: 0,
+            end_ns: t,
+            callback_ns: t,
+            failed: Some(reason),
+        });
+
+        self.policy.audio_finished(cue_id, t);
+    }
+
+    pub fn last_audio(&self) -> Option<AudioEvent> {
+        self.last_audio
     }
 }

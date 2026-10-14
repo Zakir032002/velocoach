@@ -21,6 +21,8 @@ fn one_line_is_byte_exact() {
         earcon: Some(Earcon::P2DualTone),
         lead_ms: 50,
         interrupt: false,
+        propensity_q16: u16::MAX,
+        draw_index: None,
     };
 
     let mut s = String::new();

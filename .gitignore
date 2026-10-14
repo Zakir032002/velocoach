@@ -11,3 +11,6 @@ crates/vc-gatt/fuzz/target/
 crates/vc-gatt/fuzz/artifacts/
 crates/vc-gatt/fuzz-*.log
 *.pdf
+.swiftpm/
+crates/vc-sim/fuzz/artifacts/
+crates/vc-sim/fuzz/target/

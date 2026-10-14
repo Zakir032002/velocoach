@@ -124,9 +124,14 @@ version = "0.1.0"
 dependencies = [
  "heapless",
  "libm",
+ "vc-efficacy",
  "vc-gatt",
  "vc-physio",
 ]
+
+[[package]]
+name = "vc-efficacy"
+version = "0.1.0"
 
 [[package]]
 name = "vc-gatt"
