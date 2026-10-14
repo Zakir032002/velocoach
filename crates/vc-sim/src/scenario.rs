@@ -205,6 +205,23 @@ const GRADE_CONFOUND: &[SimStep] = &[
     s(Step::new(Cooldown, 180, Some(120.0)).with_cadence(90.0)),
 ];
 
+/// Demo D4: the same ride as `grade_confound`, with a second -6 % pulse laid across the
+/// window of the grey-zone cue (onset ~441 s, window to ~458 s), so the cue is scored
+/// "? grade" on screen. The golden logs use `grade_confound`, not this.
+const GRADE_DEMO: &[SimStep] = &[
+    s(Step::new(Warmup, 300, Some(150.0)).with_cadence(90.0)),
+    s(Step::new(Steady, 10, Some(160.0)).with_cadence(90.0)).offset(40.0),
+    s(Step::new(Steady, 120, Some(160.0)).with_cadence(90.0))
+        .offset(40.0)
+        .grade(-6.0),
+    s(Step::new(Steady, 17, Some(160.0)).with_cadence(90.0)).offset(40.0),
+    s(Step::new(Steady, 20, Some(160.0)).with_cadence(90.0))
+        .offset(40.0)
+        .grade(-6.0),
+    s(Step::new(Steady, 433, Some(160.0)).with_cadence(90.0)).offset(40.0),
+    s(Step::new(Cooldown, 180, Some(120.0)).with_cadence(90.0)),
+];
+
 const CREEP_BLOCK: SimStep = s(Step::new(Steady, 180, Some(180.0)).with_cadence(90.0)).creep(0.8);
 const CREEP_EASY: SimStep = s(Step::new(Steady, 60, Some(160.0)).with_cadence(90.0));
 
@@ -325,7 +342,7 @@ const fn scenario(
     }
 }
 
-pub const SCENARIOS: [Scenario; 9] = [
+pub const SCENARIOS: [Scenario; 10] = [
     scenario(1, "climb_surge", Persona::Dana, 42, CLIMB_SURGE, NONE),
     scenario(2, "recovery_drift", Persona::Dana, 42, RECOVERY_DRIFT, NONE),
     scenario(3, "safety_hr", Persona::Dana, 42, STEADY_RIDE, REDLINE),
@@ -335,6 +352,7 @@ pub const SCENARIOS: [Scenario; 9] = [
     scenario(7, "dense", Persona::Dana, 42, &DENSE, NONE),
     scenario(8, "soak", Persona::Dana, 42, &SOAK, SOAK_FAULTS),
     scenario(9, "creep_long", Persona::Sam, 42, &CREEP_LONG, NONE),
+    scenario(10, "grade_demo", Persona::Dana, 42, GRADE_DEMO, NONE),
 ];
 
 pub fn by_id(id: u8) -> Option<&'static Scenario> {

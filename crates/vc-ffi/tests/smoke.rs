@@ -30,7 +30,7 @@ fn the_engine_wrapper_works_and_never_throws_on_bad_bytes() {
         .is_err()
     );
 
-    assert_eq!(vc_ffi::scenarios().len(), 9);
+    assert_eq!(vc_ffi::scenarios().len(), 10);
 
     assert_eq!(
         vc_ffi::encode_load(1, 2, 42, false),
