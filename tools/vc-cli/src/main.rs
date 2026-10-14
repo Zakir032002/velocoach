@@ -245,6 +245,8 @@ fn main() -> Result<()> {
             sim_cmd(scenario, persona, seed, mode)
         }
         Some("golden") => golden(args.iter().any(|arg| arg == "--check")),
+        Some("hex") => hex_cmd(&args[2..]),
+        Some("phrases") => phrases_cmd(),
         _ => {
             eprintln!(
                 "Usage:\n  vc-cli sim [--scenario NAME] \
@@ -253,6 +255,54 @@ fn main() -> Result<()> {
             std::process::exit(1);
         }
     }
+}
+
+/// Print CTRL messages as hex for nRF Connect's write dialog.
+fn hex_cmd(args: &[String]) -> Result<()> {
+    let num = |i: usize, default: u32| -> Result<u32> {
+        args.get(i)
+            .map_or(Ok(default), |s| s.parse::<u32>().context("numbers only"))
+    };
+    let msg = match args.first().map(String::as_str) {
+        Some("load") => Ctrl::Load {
+            scenario: num(1, 1)? as u8,
+            persona: num(2, 0)? as u8,
+            seed: num(3, 42)?,
+            human: num(4, 0)? == 1,
+        },
+        Some("start") => Ctrl::Start,
+        Some("stop") => Ctrl::Stop,
+        Some("ping") => Ctrl::Ping {
+            ping_id: num(1, 1)? as u16,
+            t_client_ns: 0,
+        },
+        _ => anyhow::bail!(
+            "usage: vc-cli hex load [scenario persona seed human] | start | stop | ping [id]"
+        ),
+    };
+    let mut b = [0u8; MAX_PAYLOAD];
+    let n = encode_ctrl(&msg, &mut b).map_err(|e| anyhow!("{e:?}"))?;
+    println!(
+        "{}",
+        b[..n]
+            .iter()
+            .map(|x| format!("{x:02X}"))
+            .collect::<String>()
+    );
+    Ok(())
+}
+
+/// The phrase bank as TSV: key, text, default earcon, earcon-if-enabled.
+fn phrases_cmd() -> Result<()> {
+    use vc_core::phrase::{PHRASES, earcon_for};
+    for p in PHRASES {
+        let default = earcon_for(p.directive, 0).map_or("-", |e| e.key());
+        let enabled = earcon_for(p.directive, u8::MAX).map_or("-", |e| e.key());
+        println!("{}\t{}\t{}\t{}", p.key, p.text, default, enabled);
+    }
+    // The volume-calibration clip: not a cue, never linted, never sent to the Engine.
+    println!("CAL\tAdjust the volume now, this is a test\t-\t-");
+    Ok(())
 }
 
 fn persona_code(name: &str) -> Result<u8> {

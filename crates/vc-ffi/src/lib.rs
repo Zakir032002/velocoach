@@ -462,6 +462,16 @@ pub fn encode_ping(ping_id: u16, t_client_ns: u64) -> Vec<u8> {
     })
 }
 
+/// iQOO -> iPhone: the reply to PING, for clock sync (Day 15).
+#[uniffi::export]
+pub fn encode_pong(ping_id: u16, t_rx_ns: u64, t_tx_ns: u64) -> Vec<u8> {
+    telem_bytes(&Telem::Pong {
+        ping_id,
+        t_rx_ns,
+        t_tx_ns,
+    })
+}
+
 /// iQOO -> iPhone in human mode (Day 15).
 #[uniffi::export]
 pub fn encode_rider_input(seq: u16, t_ns: u64, effort_permille: i16) -> Vec<u8> {

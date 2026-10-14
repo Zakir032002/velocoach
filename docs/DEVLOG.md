@@ -66,3 +66,19 @@
 - Broke: none
 - Tomorrow: vc-efficacy types, Study allocator + policy_hash, vc-ffi, build scripts, both shells linking
 
+## Day 9 — 2026-10-__ (v-final plan)
+- Done: manifest + runtime permissions before startForeground; RigService (connectedDevice); GattRig (4 services one at a time, adv + scan response); NotifyQueue (one in flight, drop-oldest-same-char, 500 ms watchdog); SimDriver (HandlerThread, 50 ms drift-free, CTRL, PONG); vc-cli hex; encode_pong
+- Measured: nRF Connect over 60 s: HRM __ / CPM __ / CSC __, dropped __; reconnect in __ s
+- Vivo: battery __, autostart __, recents lock __ (menu names on this build: __)
+- Decision: CTRL writes answered before the simulator sees them; nothing on a binder thread waits
+- Broke: __
+- Tomorrow: the iPhone central, the Engine on ble.q, Piper phrases, the audio player
+
+## Day 10 — 2026-10-__ (v-final plan)
+- Done: VeloCoach app (Info.plist, background modes: granted/refused __); Clock (mach_continuous_time); BLECentral on ble.q, T1 first line, auto-reconnect; CoachModel (Engine on ble.q, strict 250 ms tick + packet fallback, snapshot 4 Hz); Piper phrase bank + earcons, __ buffers, longest __ ms; AudioCuePlayer (voicePrompt/duckOthers, hostTime, dataPlayedBack, generations, interruptions); CUE_PLAYED; calibration
+- Measured: first surge countdown at __ s, go at __ s, W′ cue at __ s; Dana's power after the cue __ W; callback - computed end: __ ms (earbuds), __ ms (speaker)
+- Installed: 2026-10-__ __:__; profile expires 2026-10-__; re-sign Day 16 H1
+- Decision: session active all ride (no activation delay before a cue; music stays ducked)
+- Decision: onset/end computed from T3 + dur (+ d_route from Day 15); the callback is cross-checked, outputLatency not subtracted
+- Broke: __
+- Tomorrow: Day 11 gate: 20-min run, T1->T2 histogram, raw capture + replay, Vivo 30-min, tag v0.1.0
