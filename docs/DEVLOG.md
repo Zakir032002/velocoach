@@ -134,3 +134,55 @@
 - Decision: E8 tests the statistics with Ned's outcomes drawn directly; E1 tests the observer
 - Broke: __
 - Tomorrow: clock sync, per-cue T0-T3, d_route loopback, 15-min S2 run, STUDY.md, human mode
+
+## Day 15 — 2026-10-__ (v-final plan)
+- Done: clock.rs (Cristian, min-RTT of 16, +/- rtt_min/2; b stamped in the binder callback); PING 8-burst + 1 Hz; STAMPs after every sensor notification; chain.rs (T0-T3 per cue, stamps lost, T0>T1); histograms T0T1/T1T2/T1T3/T0T3 in the Engine; ledger chain fields; scenario 7 dense; loopback screen + tools/loopback.py; route delay setting; STUDY.md committed (hash __); StudyConfig; check-protocol-hash.sh; human mode on the rig (switch, slider, RIDER_INPUT, no cue info)
+- Clock: rtt_min __ us, bound +/- __ us, theta __ ms
+- d_route: earbuds median __ ms (IQR __-__), speaker __ ms (IQR __-__), speaker outputLatency __ ms -> d_route(earbuds) = __ ms; outputLatency(earbuds) reported __ ms (T4_est vs T4_meas)
+- S2 (dense, 15 min, earbuds): T0->T3 p50 __ p90 __ p99 __ max __ ms +/- __ ms (n=__); T0->T1 p99 __ ms (n=__); stamps lost __; T0>T1 __; skew flags __
+- Decision: tick-released cues reported as T1->T3 only (no packet, no T0)
+- Decision: the rig's "I am the rider" switch wins over LOAD's human byte
+- Broke: __
+- Tomorrow: re-sign; badges + report card; L_onset; dry run; share sheet; LATENCY.md
+
+## Day 16 — 2026-10-__ (v-final plan)
+- Re-signed __:__; new profile expires 2026-10-__ (covers Day 20)
+- Done: last_observed + CueOutcomeFfi (directive, arm, L_onset, coincidental); report_card from the ledger; badges, list, card (hidden during Study); rider moves -> L_onset/L_end (5 % rule, 64-input history); human.rs; share-sheet export; --exclude-rider; LATENCY.md
+- Dry run R00 (creep, Study, seed 1, human, earbuds): __ decision points (__ sham); verdicts __; L_onset median __ s; replay identical __; audit M2 __ M3 __ M4 __ M5 __ (valid __ %, p95 bound __ us)
+- Dry-run findings: __ (interface fixes: __; deviations: none / __)
+- K3: human mode working: yes / no -> L1
+- Broke: __
+- Tomorrow: 60-min soak with a scripted fault plan (S6) + ENGINEERING_NOTES; my sessions R01 S1-S3; friend 1 consent + S1
+
+## Day 17 — 2026-10-__ (v-final plan)
+- Soak (60 min, scenario soak, 5 faults + 4 RATE changes): soak-check __ ; recoveries __ s / __ / __ / __ / __ ; replay identical __ ; STAMP loss __ % ; rig dropped __ ; battery iPhone __ -> __ %, iQOO __ -> __ % ; iPhone screen locked from 30:00: yes/no
+- ENGINEERING_NOTES.md drafted (__ blanks left)
+- Deviations recorded before R01 S1: aborted-session rule; optional publication line on the consent sheet (protocol hash now __)
+- Sessions: R01 S1 __ dp, S2 __ dp, S3 __ dp ; R02 S1 __ dp (consent __, publication __)
+- Interim audit (no outcomes viewed): M2 __ M3 __ M4 __ M5 __
+- Backups: SHA256SUMS + encrypted zip in __ places
+- Broke / noted (not fixed): __
+- Tomorrow: R02 S2-S3, R03 consent + S1-S3, then the analysis
+
+## Day 18 — 2026-10-__ (v-final plan)
+- Sessions: R02 S2 __ dp, S3 __ dp ; R03 consent __ (publication __), S1 __ dp, S2 __ dp, S3 __ dp ; aborted __ ; debriefs done __
+- Study total: __ decision points from __ people (sham __ / direct __ / autonomy __) ; excluded __ confounded, __ invalid
+- Audit: M2 __ M3 __ M4 __ M5 __ ; every capture identical __ ; checksums OK __
+- Primary: cue - sham __ (95 % CI __ to __) ; autonomy - direct __ (95 % CI __ to __)
+- STUDY.md Results written ; data/study/ has __ ledgers ; M6 CI step added
+- GoldenCheetah: WPrime.cpp @ __ lines __ ; port vs WbalGc max __ J ; WbalExact vs WbalGc max __ J  (or: cut, README drafted)
+- Tomorrow: re-check Aki's hub and domesly.com (wording only), README, the four docs, rehearse the demo seeds, record
+
+## Day 19 — 2026-10-__ (v-final plan)
+- Hub/site re-check: new posts since Oct 11: __ ; wording changes: __
+- Docs: README, EFFICACY, ENGINEERING_NOTES, STUDY (Results), LATENCY, THIRD_PARTY; Piper voice licence: __
+- Demo tools: outcomes in vc-cli sim, creep_long (scenario 9), find-interrupt (fault at __ s), encode_fault + fault field
+- Rehearsed D1-D7 (DEMOS.md); recorded __ shots + 8 voiceover segments
+
+## Day 20 — 2026-10-__ (v-final plan) — SHIP DAY (template: not yet done)
+- Video: __:__ long, uploaded unlisted __:__
+- Final soak: S6 __ ; recoveries __ ; replay __
+- CI green; fuzz smoke __ executions, 0 crashes; hygiene clean
+- Tagged v1.0.0 at __; release published
+- Message sent at __:__ via __
+- Twenty days: __ commits, __ tests, __ lines of Rust; the three things I'd do differently: __
