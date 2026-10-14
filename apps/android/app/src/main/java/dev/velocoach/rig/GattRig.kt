@@ -22,6 +22,7 @@ import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
 import android.os.ParcelUuid
+import android.os.SystemClock
 import android.util.Log
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -174,6 +175,7 @@ class GattRig(private val ctx: Context, private val driver: SimDriver) {
                 BluetoothProfile.STATE_CONNECTED -> {
                     central = device
                     RigStatus.central = device.address
+                    driver.queue.onConnected() // both phones restart their packet numbering
                     stopAdvertising() // one central at a time
                 }
                 BluetoothProfile.STATE_DISCONNECTED -> if (device == central) {
@@ -218,9 +220,10 @@ class GattRig(private val ctx: Context, private val driver: SimDriver) {
             device: BluetoothDevice, requestId: Int, ch: BluetoothGattCharacteristic,
             preparedWrite: Boolean, responseNeeded: Boolean, offset: Int, value: ByteArray,
         ) {
+            val rxNs = SystemClock.elapsedRealtimeNanos() // b: the moment the write arrived
             // Answer first: never make the central wait on the simulator.
             if (responseNeeded) server?.sendResponse(device, requestId, BluetoothGatt.GATT_SUCCESS, 0, null)
-            if (ch.uuid == Uuids.CTRL) driver.ctrl(value.copyOf(), fromScreen = false)
+            if (ch.uuid == Uuids.CTRL) driver.ctrl(value.copyOf(), fromScreen = false, rxNs = rxNs)
         }
 
         override fun onNotificationSent(device: BluetoothDevice, status: Int) {

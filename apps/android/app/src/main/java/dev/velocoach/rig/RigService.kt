@@ -16,7 +16,6 @@ import android.util.Log
 /** Owns the GATT server and the simulator thread for as long as the rig runs. */
 class RigService : Service() {
     private var rig: GattRig? = null
-    private var driver: SimDriver? = null
 
     private val btState = object : BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
@@ -81,6 +80,8 @@ class RigService : Service() {
     }
 
     companion object {
+        /** For the human-mode screen: the slider talks to the driver directly. */
+        @Volatile var driver: SimDriver? = null
         const val TAG = "vc-rig"
         const val ACTION_STOP = "dev.velocoach.rig.STOP"
         const val EXTRA_CTRL = "ctrl"

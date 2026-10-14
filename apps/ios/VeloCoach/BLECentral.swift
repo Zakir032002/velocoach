@@ -4,6 +4,8 @@ import VcCore
 /// Called on ble.q.
 protocol BLECentralDelegate: AnyObject {
     func central(didReceive bytes: Data, from source: Source, t1: UInt64)
+    /// Before any notification of the new link: the rig's packet numbering restarts here.
+    func centralDidConnect()
     func centralDidBecomeReady()
     func centralDidDisconnect()
 }
@@ -65,6 +67,7 @@ final class BLECentral: NSObject, CBCentralManagerDelegate, CBPeripheralDelegate
 
     func centralManager(_ central: CBCentralManager, didConnect p: CBPeripheral) {
         stateText = "discovering"
+        delegate?.centralDidConnect()
         p.delegate = self
         p.discoverServices(Array(Uuids.wanted.keys))
     }

@@ -32,12 +32,17 @@ final class AudioCuePlayer {
     private let node = AVAudioPlayerNode()
     private var bank: [String: (buffer: AVAudioPCMBuffer, ms: UInt16)] = [:]
     private var format: AVAudioFormat?
+    private var click: AVAudioPCMBuffer?
+    private var loggedRoute = ""
+    /// iOS's own estimate of the route's output latency (T4_est - T3), ms; ble.q.
+    private(set) var outputLatencyMs = 0
     private var current: Playing?
     private var generation = 0
 
     init(queue: DispatchQueue) {
         q = queue
         loadBank()
+        click = makeClick(format: format)
         configureSession()
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
@@ -48,9 +53,10 @@ final class AudioCuePlayer {
 
     // MARK: playing (ble.q)
 
-    /// Schedule a cue at an explicit host time. Returns its length in ms, or nil
-    /// if no buffer exists for it (the caller reports that as a failure).
-    func play(_ d: CueDecision, now _: UInt64) -> UInt16? {
+    /// Schedule a cue at an explicit host time. Returns its length in ms and T3 (the
+    /// scheduled render start), or nil if no buffer exists for it (the caller reports
+    /// that as a failure).
+    func play(_ d: CueDecision, now _: UInt64) -> (durMs: UInt16, t3Ns: UInt64)? {
         let name = d.earconKey.map { "\(d.phraseKey)__\($0)" } ?? d.phraseKey
         guard let clip = bank[name] else { return nil }
         if !engine.isRunning { startEngine() }
@@ -76,7 +82,29 @@ final class AudioCuePlayer {
             let callbackNs = Clock.nowNs()
             self?.q.async { self?.finished(id: id, generation: gen, callbackNs: callbackNs) }
         }
-        return clip.ms
+        return (clip.ms, t3)
+    }
+
+    /// Day 15 loopback: the click at an explicit host time (only while no cue plays).
+    func scheduleClick(atHost host: UInt64) {
+        q.async {
+            guard self.current == nil, let click = self.click else { return }
+            if !self.engine.isRunning { self.startEngine() }
+            self.node.scheduleBuffer(click, at: AVAudioTime(hostTime: host), options: [], completionHandler: nil)
+        }
+    }
+
+    private func makeClick(format: AVAudioFormat?) -> AVAudioPCMBuffer? {
+        guard let f = format else { return nil }
+        let n = AVAudioFrameCount(f.sampleRate * 0.005)
+        guard let b = AVAudioPCMBuffer(pcmFormat: f, frameCapacity: n), let ch = b.floatChannelData else { return nil }
+        b.frameLength = n
+        let ramp = Float(f.sampleRate * 0.001)
+        for i in 0..<Int(n) {
+            let env = min(1, Float(i) / ramp, Float(Int(n) - 1 - i) / ramp)
+            ch[0][i] = 0.8 * env * sinf(2 * .pi * 1000 * Float(i) / Float(f.sampleRate))
+        }
+        return b
     }
 
     /// `.voicePrompt` has its own volume, adjustable only while it is speaking:
@@ -135,6 +163,17 @@ final class AudioCuePlayer {
         } catch {
             print("vc: audio session: \(error)")
         }
+        logRoute()
+    }
+
+    /// outputLatency once per route: LATENCY.md compares it (T4_est) with the loopback (T4_meas).
+    private func logRoute() {
+        let s = AVAudioSession.sharedInstance()
+        let route = s.currentRoute.outputs.map { "\($0.portType.rawValue) \($0.portName)" }.joined(separator: ", ")
+        outputLatencyMs = Int((s.outputLatency * 1000).rounded())
+        guard route != loggedRoute else { return }
+        loggedRoute = route
+        print("vc: route [\(route)] outputLatency \(outputLatencyMs) ms")
     }
 
     private func startEngine() {
@@ -168,6 +207,7 @@ final class AudioCuePlayer {
         }
         nc.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil) { [weak self] n in
             let raw = n.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            self?.q.async { self?.logRoute() }
             if raw.flatMap(AVAudioSession.RouteChangeReason.init(rawValue:)) == .oldDeviceUnavailable {
                 self?.q.async { self?.fail(.routeLost) } // the earbuds went away mid-cue
             }
