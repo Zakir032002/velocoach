@@ -24,6 +24,7 @@ class SimDriver {
 
     @Volatile var humanMode = false
     private var riderSeq = 0
+    private var lastEffort: Short = 700 // the slider's position (thousandths of CP); sim thread only
 
     fun attach(r: GattRig) {
         rig = r
@@ -57,10 +58,15 @@ class SimDriver {
     /** From the UI thread: the slider moved at `tNs` (the rig's clock). */
     fun human(permille: Int, tNs: Long) {
         handler.post {
-            sim?.setHumanEffort(permille.toShort())
-            riderSeq = (riderSeq + 1) and 0xFFFF
-            queue.offer(Uuids.TELEM, encodeRiderInput(riderSeq.toUShort(), tNs.toULong(), permille.toShort()), -1)
+            lastEffort = permille.toShort()
+            sim?.setHumanEffort(lastEffort)
+            sendRiderInput(tNs)
         }
+    }
+
+    private fun sendRiderInput(tNs: Long) {
+        riderSeq = (riderSeq + 1) and 0xFFFF
+        queue.offer(Uuids.TELEM, encodeRiderInput(riderSeq.toUShort(), tNs.toULong(), lastEffort), -1)
     }
 
     fun setHumanMode(on: Boolean) {
@@ -107,7 +113,17 @@ class SimDriver {
                 }
                 is CtrlReply.Disconnect -> rig?.dropLink(reply.durMs.toLong())
             }
-            if (humanMode) s.setHuman(true) // a LOAD replaced the simulator: the switch still wins
+            if (humanMode) {
+                // A LOAD replaced the simulator: the switch still wins, and the slider's position
+                // (not the simulator's default) is the effort.
+                s.setHuman(true)
+                s.setHumanEffort(lastEffort)
+                if (bytes.size > 1 && bytes[1] == OP_START) {
+                    // Once the clock sync has a sample, tell the coach where the slider is, so the
+                    // first cue has a baseline to measure the rider's first move against.
+                    handler.postDelayed({ sendRiderInput(SystemClock.elapsedRealtimeNanos()) }, BASELINE_DELAY_MS)
+                }
+            }
             RigStatus.scenario = s.name()
             RigStatus.running = s.isRunning()
         } catch (e: VcException) {
@@ -118,5 +134,7 @@ class SimDriver {
     private companion object {
         const val STEP_MS = 50L
         const val OP_LOAD: Byte = 0x20
+        const val OP_START: Byte = 0x21
+        const val BASELINE_DELAY_MS = 2_000L
     }
 }

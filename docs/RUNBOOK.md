@@ -24,10 +24,10 @@ Rules that hold from the first counted session to the last:
 - [ ] Earbuds connected; the iPhone's audio route shows Bluetooth; calibration
       clip played, volume comfortable
 - [ ] Route delay setting still filled in (same earbuds as the loopback)
-- [ ] Rig: "I am the rider" on, slider at 60 %
+- [ ] Rig: "I am the rider" on, slider at 70 % (the pilot scenario adds only 32 W of creep per cycle; from 60 % it never reaches the grey zone and the session yields no decision points)
 - [ ] iPhone: Study on, rider R0__, session __ -> the screen shows seed __
       (1000 x rider + session)
-- [ ] iPhone: Human rider on, scenario `creep`; `policy_hash` on screen equals
+- [ ] iPhone: Human rider on, scenario `creep_pilot`; `policy_hash` on screen equals
       the one in SESSIONS.md
 - [ ] For a friend: consent signed (first session only), briefing read from the card
 

@@ -17,7 +17,7 @@ two printers and a button were added for the demos (they sit outside the decisio
 | D3 | iPhone + rig | `recovery_drift`, Dana, Coach, HR fault at the rehearsed time | the safety cue | a P2 phrase cut off by the safety cue; then the E3 test output |
 | D4 | Mac terminal | `grade_demo`, Coach | the cue across the grade change | `? grade` beside that cue |
 | D5 | iPhone + rig | `dropout`, Dana, Coach | the scheduled power dropout | quality Stale -> Lost, "Check power meter connection.", Recovering -> Fresh |
-| D6 | iPhone + rig, you on the slider | `creep`, human, Coach | the first grey-zone cue | ease the slider; badge ✓ __ s = L_onset |
+| D6 | iPhone + rig, you on the slider | `creep_pilot`, human, slider at 70 %, Coach | the first grey-zone cue | ease the slider; badge ✓ __ s = L_onset |
 | D7 | Mac browser | `docs/study/results.html` | — | arms, sham false-positive rate, CIs, "feasibility pilot" |
 
 ### Headless rehearsal (done; the Mac-side scenes are deterministic)
@@ -32,7 +32,7 @@ the phones (below).
 | D3 | `vc-cli find-interrupt --scenario recovery_drift` | HR-redline fault at 846, 847 or 848 s makes the safety cue interrupt a phrase at 1,083.0 s. Use **847 s**, the middle of the run of hits |
 | D4 | `vc-cli sim --scenario grade_demo` | the grey-zone cue at 441.0 s is `confounded ... ? grade` (the second -6 % pulse falls inside its window). Note: the original `grade_confound` scenario scores the same cue `complied`, because its grade block ends at 430 s, before the cue's onset, so it cannot show `? grade` |
 | D5 | `vc-cli sim --scenario dropout` | the SENSOR_DROPOUT cue at 608.25 s |
-| D6 (headless twin) | `vc-cli sim --scenario creep` | first grey-zone cue at 214.0 s (3:34) with the default seed; on the phones the time depends on the seed |
+| D6 (headless twin) | `vc-cli sim --scenario creep_pilot` | first grey-zone cue at 149.25 s (persona rider, default seed); with a human holding the slider at 70 % (seed 1001) the first cue is at 99 s and the next at 153 s, at 75 % at 78 s. Plan about 100 s of ride before the moment |
 
 ## Demo tools
 
@@ -59,7 +59,7 @@ time (+/- a second on the phones). Write each one's numbers here.
 | D3 | recovery_drift / Dana / __ | __ s | HR redline at 847 s | cut-off phrase | | |
 | D4 | grade_demo / Dana / 42 | 441 s | (Mac) | `? grade` | exact | exact |
 | D5 | dropout / Dana / __ | __ s | start | Stale -> Lost -> Fresh | | |
-| D6 | creep / Calib (human) / __ | __ s | ease the slider after the words | ✓ __ s | | |
+| D6 | creep_pilot / human, slider 70 % / __ | __ s | ease the slider after the words | ✓ __ s | | |
 | D7 | — | — | open results.html | report card | | |
 
 | If a scene... | Then |

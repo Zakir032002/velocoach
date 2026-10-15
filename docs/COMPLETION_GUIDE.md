@@ -173,7 +173,7 @@ Fill the E1 count honestly (the tag message in the documents says `E1 __/20`).
 1. Re-sign the iPhone app (free profile lasts 7 days; do it when fewer than 4 remain); note
    the expiry in DEVLOG.
 2. Dry run R00 exactly like a counted session (Phase 7's runbook): Study on, rider R00,
-   session 1 (seed 1), scenario `creep`, Human rider on, rig "I am the rider", slider at 60 %.
+   session 1 (seed 1), scenario `creep_pilot`, Human rider on, rig "I am the rider", slider at 70 %.
    ```
    $ mkdir -p runs/study/R00 && mv ~/Downloads/ledger-*.jsonl ~/Downloads/ride-*.vcraw runs/study/R00/
    $ cargo run -q -p vc-cli -- replay runs/study/R00/ride-*.vcraw

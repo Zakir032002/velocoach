@@ -29,9 +29,10 @@ No health data: heart rate is simulated; the only input is the slider.
 R00 is the uncounted dry run and is excluded from every analysis.
 
 ## Sessions
-- 3 x 20 min per person on the `creep` scenario in human mode: a slow power
-  creep (at most 1 W/s, no grade change) the rider counteracts with the slider,
-  plus scripted steps. At least 20 minutes between a person's sessions.
+- 3 x 20 min per person on the `creep_pilot` scenario in human mode: 18 cycles of
+  a slow power creep (0.8 W/s, at most 1 W/s, no grade change; 40 s, then 20 s
+  easy) that the rider counteracts with the slider. The slider starts at 70 %.
+  At least 20 minutes between a person's sessions.
 - Session seed = 1000 x rider number + session number (R02 session 3 -> 2003).
 - Expected 15-20 decision points per session: 45-60 per person, 100-180 total.
 - The rig shows no cue information; the only signal is the earbud.

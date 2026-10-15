@@ -107,7 +107,7 @@ class MainActivity : Activity() {
     private val slider by lazy {
         SeekBar(this).apply {
             max = 2000 // permille of CP: 0 .. 2 x CP
-            progress = 600
+            progress = 700 // 70 % of CP: the pilot scenario's creep reaches the grey zone from here
             minimumHeight = 300
         }
     }
@@ -149,6 +149,10 @@ class MainActivity : Activity() {
             text = "I am the rider"
             setOnCheckedChangeListener { _, on ->
                 RigService.driver?.setHumanMode(on)
+                if (on) {
+                    effortLabel.text = "effort ${slider.progress / 10} % of CP"
+                    sendEffort(slider.progress, SystemClock.elapsedRealtimeNanos()) // where the slider already is
+                }
                 statusArea.visibility = if (on) View.GONE else View.VISIBLE // counters, spinners, buttons
                 humanArea.visibility = if (on) View.VISIBLE else View.GONE
             }
