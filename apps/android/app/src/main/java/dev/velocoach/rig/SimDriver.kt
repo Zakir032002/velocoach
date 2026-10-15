@@ -93,6 +93,9 @@ class SimDriver {
 
     private fun onCtrl(bytes: ByteArray, fromScreen: Boolean, rxNs: Long) {
         val now = rxNs.toULong() // b for PING: the binder-callback time, not the handler's
+        // A new ride makes a new Engine on the iPhone, whose packet counters start at zero:
+        // restart ours with it, or no STAMP of the second ride on a connection would match.
+        if (bytes.size > 1 && bytes[1] == OP_LOAD) queue.resetCounters()
         // The first message is normally LOAD, which replaces the scenario anyway.
         val s = sim ?: Simulator(1u, 0u, null, false).also { sim = it }
         try {
@@ -114,5 +117,6 @@ class SimDriver {
 
     private companion object {
         const val STEP_MS = 50L
+        const val OP_LOAD: Byte = 0x20
     }
 }

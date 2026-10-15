@@ -238,6 +238,31 @@ const CREEP: &[SimStep] = &[
     s(Step::new(Cooldown, 60, Some(120.0)).with_cadence(90.0)),
 ];
 
+/// The pilot's scenario (see STUDY.md): `creep` has four creep blocks and so yields about
+/// five P2 decision points per 20 minutes, because the grey-zone directive re-arms only at a
+/// step boundary. Eighteen short cycles (40 s creep at 0.8 W/s, 20 s easy; at most 1 W/s, no
+/// grade change) give about 15-20 per session, the plan's figure.
+const CREEP_PILOT_BLOCK: SimStep =
+    s(Step::new(Steady, 40, Some(180.0)).with_cadence(90.0)).creep(0.8);
+const CREEP_PILOT_EASY: SimStep = s(Step::new(Steady, 20, Some(160.0)).with_cadence(90.0));
+
+const fn creep_pilot_steps() -> [SimStep; 38] {
+    let mut a = [s(Step::new(Warmup, 60, Some(150.0)).with_cadence(90.0)); 38];
+    let mut i = 1;
+    while i < 37 {
+        a[i] = if i % 2 == 1 {
+            CREEP_PILOT_BLOCK
+        } else {
+            CREEP_PILOT_EASY
+        };
+        i += 1;
+    }
+    a[37] = s(Step::new(Cooldown, 60, Some(120.0)).with_cadence(90.0));
+    a
+}
+
+const CREEP_PILOT: [SimStep; 38] = creep_pilot_steps();
+
 const fn dense_steps() -> [SimStep; 61] {
     let mut a = [s(Step::new(Warmup, 60, Some(150.0)).with_cadence(90.0)); 61];
     let mut i = 1;
@@ -342,7 +367,7 @@ const fn scenario(
     }
 }
 
-pub const SCENARIOS: [Scenario; 10] = [
+pub const SCENARIOS: [Scenario; 11] = [
     scenario(1, "climb_surge", Persona::Dana, 42, CLIMB_SURGE, NONE),
     scenario(2, "recovery_drift", Persona::Dana, 42, RECOVERY_DRIFT, NONE),
     scenario(3, "safety_hr", Persona::Dana, 42, STEADY_RIDE, REDLINE),
@@ -353,6 +378,7 @@ pub const SCENARIOS: [Scenario; 10] = [
     scenario(8, "soak", Persona::Dana, 42, &SOAK, SOAK_FAULTS),
     scenario(9, "creep_long", Persona::Sam, 42, &CREEP_LONG, NONE),
     scenario(10, "grade_demo", Persona::Dana, 42, GRADE_DEMO, NONE),
+    scenario(11, "creep_pilot", Persona::Calib, 7, &CREEP_PILOT, NONE),
 ];
 
 pub fn by_id(id: u8) -> Option<&'static Scenario> {
@@ -418,5 +444,10 @@ mod tests {
         };
 
         assert_eq!(scenario.total_ns(), 1_200 * S);
+    }
+
+    #[test]
+    fn creep_pilot_scenario_lasts_twenty_minutes() {
+        assert_eq!(by_name("creep_pilot").unwrap().total_ns(), 1_200 * S);
     }
 }

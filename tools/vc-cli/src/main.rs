@@ -13,6 +13,7 @@ fn run_sim(name: &str, persona: u8, seed: Option<u64>, mode: Mode) -> Result<Sim
         mode,
         mode_seed: seed.unwrap_or(0),
         ctrl_at: &[],
+        human_permille: None,
     })
     .map_err(|e| anyhow!(e))
 }

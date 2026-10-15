@@ -19,6 +19,8 @@ pub struct RunOpts<'a> {
     pub mode_seed: u64,
     /// CTRL messages to apply at given ride times (ns), e.g. a scripted FAULT.
     pub ctrl_at: &'a [(u64, Vec<u8>)],
+    /// Human mode with the slider held at this many thousandths of CP (no persona reacts).
+    pub human_permille: Option<i16>,
 }
 
 impl Default for RunOpts<'_> {
@@ -30,6 +32,7 @@ impl Default for RunOpts<'_> {
             mode: Mode::Coach,
             mode_seed: 0,
             ctrl_at: &[],
+            human_permille: None,
         }
     }
 }
@@ -115,7 +118,11 @@ impl Harness {
 pub fn run_sim(o: RunOpts<'_>) -> Result<SimRun, String> {
     let sc = scenario::by_name(o.scenario)
         .ok_or_else(|| format!("no scenario named '{}'", o.scenario))?;
-    let sim = Simulator::new(sc.id, o.persona, o.seed, false).map_err(|e| e.to_string())?;
+    let mut sim = Simulator::new(sc.id, o.persona, o.seed, o.human_permille.is_some())
+        .map_err(|e| e.to_string())?;
+    if let Some(p) = o.human_permille {
+        sim.set_human_effort(p);
+    }
     let cfg = EngineConfig {
         profile: sc.profile,
         ..EngineConfig::default()

@@ -36,7 +36,12 @@ class NotifyQueue(private val rig: () -> GattRig?) {
 
     /** A new connection: the iPhone restarts its per-channel packet counters too. */
     @Synchronized
-    fun onConnected() {
+    fun onConnected() = resetCounters()
+
+    /** The numbering STAMPs use must restart whenever the iPhone's Engine does: a new
+     *  connection, and a new ride (LOAD) on the same connection. */
+    @Synchronized
+    fun resetCounters() {
         stampSeq = 0
         sentSeq.fill(0)
     }

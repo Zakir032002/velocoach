@@ -460,7 +460,12 @@ impl Engine {
             outcome: o.outcome,
             draw_index: o.draw_index,
             onset_source,
-            sync_bound_us: chain.bound_ns.map_or(0, |b| (b / 1_000) as u32),
+            // The bound of the T0 mapping if the cue had one; otherwise the clock's current bound
+            // (a tick-released cue has no T0, but L_onset and the M5 audit still rest on the sync).
+            sync_bound_us: chain
+                .bound_ns
+                .or_else(|| self.clock.bound_ns())
+                .map_or(0, |b| (b / 1_000) as u32),
             chain,
             dropped_before: 0, // filled in by the ring
         });
