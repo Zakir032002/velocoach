@@ -28,7 +28,7 @@ is frozen for decision-affecting code.
    ```
 3. iPhone project (Xcode). The repo has no `.xcodeproj` for VeloCoach; the one you made on
    Day 10 must pick up two **new files**: add `apps/ios/VeloCoach/LoopbackView.swift` and
-   `StudyConfig.swift` to the target. Minimum deployment target **iOS 16** (`ShareLink`).
+   `StudyConfig.swift` to the target. Minimum deployment target **iOS 17** (the `VcCore` package declares `.iOS(.v17)`; `ShareLink` needs 16).
    Build. Likely first-build errors, in order of probability:
    - a binding name differs slightly (`.t0t3`, `.t1t2`, `.hrRedline`, `lOnsetMs`,
      `negativeT0t1` were checked against generated bindings; anything else is new);

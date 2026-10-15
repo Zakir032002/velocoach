@@ -175,8 +175,9 @@ What happens inside `ingest`:
 null rider, Calib 70 %/3.0 s as the known rider), heart rate follows power with lag, and faults
 (`faults.rs`: dropout, garbage, coast, HR redline, disconnect, W′ mismatch) can be scheduled or
 injected. `packets.rs` encodes HRM/CPM/CSC notifications; `sim.rs` is the `Simulator` driven by
-CTRL messages; `scenario.rs` holds ten scenarios: `climb_surge`, `recovery_drift`, `safety_hr`,
-`dropout`, `grade_confound`, `creep`, `dense`, `soak`, `creep_long`, `grade_demo`. Human mode
+CTRL messages; `scenario.rs` holds eleven scenarios: `climb_surge`, `recovery_drift`, `safety_hr`,
+`dropout`, `grade_confound`, `creep`, `dense`, `soak`, `creep_long`, `grade_demo`, `creep_pilot`
+(the pilot's scenario: 18 cycles of 40 s creep and 20 s easy, about 17 decision points per session). Human mode
 replaces the persona with a slider effort (fraction of CP).
 
 ### 3.6 `vc-ffi`: the only place phones touch Rust
@@ -275,7 +276,7 @@ T4  the cue reaches the ear = T3 + d_route  (measured, not promised)
   the last, accepts one central, and stamps the CTRL write's arrival time in the binder callback.
 - `NotifyQueue` allows exactly one notification in flight (with a 500 ms watchdog), takes T0
   immediately before each sensor notification and queues the STAMP after it; its counters reset on
-  every new connection.
+  every new connection and on every LOAD (a new ride makes a new Engine on the iPhone).
 - `SimDriver` owns the `Simulator` on a `HandlerThread` ("sim", 50 ms steps); applies CTRL;
   replies PONG; forwards slider moves as `RIDER_INPUT`; the "I am the rider" switch wins over
   LOAD's human byte.

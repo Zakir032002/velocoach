@@ -119,6 +119,10 @@ Bugs in the documents (fixed in the repository, behaviour as the documents inten
 
 Additions beyond the documents (all outside the decision path):
 
+- Found and fixed while auditing (see `REMAINING_WORK.md` part 1): STAMP counters did not restart on a
+  second ride; the slider's position was not the simulated effort until the first move; cues without a
+  T0 recorded a sync bound of 0; the original `creep` yields about 5 decision points per session, not
+  15-20, so scenario 11 `creep_pilot` was added and STUDY.md/RUNBOOK now use it with the slider at 70 %.
 - `grade_demo` (scenario 10): D4's `? grade` cannot be produced by `grade_confound`, whose
   grade block ends at 430 s, before the cue's onset at 441 s (the cue is `complied`). The new
   scenario lays a second -6 % pulse across the cue's window; the goldens use the original.
