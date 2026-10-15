@@ -23,8 +23,9 @@ phone captures replaying identically (gate G-11, the soak).
 ## UniFFI
 0.32.2, proc macros, library mode. One Mutex per object (never contended:
 one serial queue per phone). Errors in ingest become counters, never exceptions.
-Stubs with final signatures froze FFI v0 on Day 8. Finding: bytes cross as __
-in Swift and __ in Kotlin (one copy of 4-20 bytes; measured inside T1->T2).
+Stubs with final signatures froze FFI v0 on Day 8. Finding: bytes cross as `Data`
+in Swift and `ByteArray` in Kotlin (a length-prefixed RustBuffer: one copy of 4-20 bytes,
+not zero-copy as the plan hoped; measured inside T1->T2).
 
 ## Android rig (Vivo / OriginOS)
 connectedDevice foreground service, permissions before startForeground;
@@ -62,8 +63,10 @@ Its type holds four delivery parameters and nothing else; safety is out of
 reach by construction (E3) and the ranges are Aki's (E4); frozen in Study.
 
 ## Fuzzing
-hrm __, cpm __, csc __, telem __, ctrl __, vcsim __ million executions,
-0 crashes (S4).
+Recorded so far: ctrl 471.5 M executions in 10 minutes (Day 3) and 35.1 M executions
+across the targets (Day 7), 0 crashes. Per-decoder 10-minute logs for all six targets
+(hrm, cpm, csc, telem, ctrl, vcsim) are still to be made with `scripts/fuzz-all.sh 600`:
+hrm __, cpm __, csc __, telem __, ctrl __, vcsim __ million executions, 0 crashes (S4).
 
 ## Decisions and deviations
 | Decision | Why | Cost |
