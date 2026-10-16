@@ -20,7 +20,7 @@ on 20 held-out seeds (1000–1019) that were never run while the observer was be
 Not changed: the anchor, the 10-s pre-trend and its ±2 W/s clamp, the 0.5 Δ / 0.2 Δ thresholds,
 the window, the confounders, the 10 W floor.
 
-### Result (commit of this entry; `cargo test --release -p vc-harness --test e1 -- --nocapture`)
+### Result (observer change: commit `b921cf4`; `cargo test --release -p vc-harness --test e1 -- --nocapture`)
 
 - **Development seeds 0–19: 15/20 seeds within tolerance (seeds 4,5,8,12,17 fail:
   0.705/2.42 s, 0.720/2.42 s, 0.595/2.67 s, 0.615/3.17 s, 0.660/2.42 s)** (compliance/median latency).

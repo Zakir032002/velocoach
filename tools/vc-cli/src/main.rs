@@ -103,7 +103,14 @@ fn main() -> Result<()> {
                 }
             };
 
-            sim_cmd(scenario, persona, seed, mode, flag("--jsonl"))
+            sim_cmd(
+                scenario,
+                persona,
+                seed,
+                mode,
+                flag("--jsonl"),
+                flag("--rider").unwrap_or("R01"),
+            )
         }
         Some("golden") => golden(args.iter().any(|arg| arg == "--check")),
         Some("hex") => hex_cmd(&args[2..]),
@@ -121,8 +128,12 @@ fn main() -> Result<()> {
         ),
         _ => {
             eprintln!(
-                "Usage:\n  vc-cli sim [--scenario NAME] \
-                 [--persona NAME] [--seed N]\n  vc-cli golden [--check]"
+                "Usage:\n  vc-cli sim [--scenario NAME] [--persona NAME] [--seed N] \
+                 [--mode coach|study] [--jsonl FILE [--rider ID]]\n  vc-cli golden [--check]\n  \
+                 vc-cli hex <load|start|stop|ping|...>\n  vc-cli phrases\n  \
+                 vc-cli replay <file.vcraw>\n  vc-cli soak-check <soak.csv>\n  \
+                 vc-cli power-trace [--scenario NAME]\n  vc-cli find-interrupt [--scenario NAME]\n  \
+                 vc-cli wbal <power.csv>"
             );
             std::process::exit(1);
         }
@@ -202,8 +213,9 @@ fn replay_cmd(path: &str) -> Result<()> {
 }
 
 /// After run_sim: drain the Engine's ledger ring through the same writer the phone uses.
-fn write_jsonl(run: &mut vc_harness::SimRun, path: &str) -> Result<()> {
-    let mut writer = vc_report::Writer::new("R01", None);
+fn write_jsonl(run: &mut vc_harness::SimRun, path: &str, rider: &str, data: String) -> Result<()> {
+    let mut writer = vc_report::Writer::new(rider, None);
+    writer.data = Some(data);
     let mut buf = [vc_core::LedgerRecord::SessionEnd {
         t_ns: 0,
         cues: 0,
@@ -412,11 +424,25 @@ fn sim_cmd(
     seed: Option<u64>,
     mode: Mode,
     jsonl: Option<&str>,
+    rider: &str,
 ) -> Result<()> {
     let mut run = run_sim(scenario, persona, seed, mode)?;
 
     if let Some(path) = jsonl {
-        write_jsonl(&mut run, path)?;
+        let persona_name = vc_sim::Persona::ALL
+            .iter()
+            .find(|p| p.code() == persona)
+            .or_else(|| {
+                vc_sim::scenario::by_name(scenario)
+                    .map(|s| &s.persona)
+                    .filter(|_| persona == 0)
+            })
+            .map_or("unknown", |p| p.name());
+        let data = format!(
+            "simulated persona={persona_name} seed={} link=offline",
+            seed.map_or_else(|| "none".to_string(), |s| s.to_string())
+        );
+        write_jsonl(&mut run, path, rider, data)?;
     }
 
     print!("{}", vc_core::golden::HEADER);

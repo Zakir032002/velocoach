@@ -5,7 +5,9 @@ plugins {
 
 android {
     namespace = "dev.velocoach.rig"
-    compileSdk = 35
+    // The SDK packages scripts/setup-android.sh installs: platforms;android-36, build-tools;36.0.0.
+    compileSdk = 36
+    buildToolsVersion = "36.0.0"
 
     defaultConfig {
         applicationId = "dev.velocoach.rig"

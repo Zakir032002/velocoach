@@ -65,6 +65,17 @@ jobs:
             echo "no published study ledgers yet (data/study/*.jsonl): M6 not applicable"
           fi
 
+      - name: Simulated study run regenerates byte-identically (software only, not human data)
+        run: |
+          bash scripts/sim-study.sh
+          git diff --exit-code -- data/sim-study docs/sim-study
+          test -z "$(git status --porcelain -- data/sim-study docs/sim-study)"
+
+      - name: Example report regenerates from the golden ledger
+        run: |
+          cargo run -q -p vc-report -- golden/creep_study_11.jsonl -o /tmp/example.html
+          cmp /tmp/example.html docs/examples/creep_study_11.html
+
       - name: M7 mandatory labels present
         run: |
           for phrase in "feasibility pilot" "slider proxy" "personas are assumptions"; do

@@ -33,6 +33,11 @@ pub struct SessionStart {
     pub profile: String,
     pub seed: u64,
     pub t_ns: u64,
+    /// Where the data came from, e.g. "simulated persona=calib seed=11 link=offline". Every
+    /// record in this repository is simulated (no real rider or sensor data); vc-report prints
+    /// this on its banner. Absent in ledgers written before the field existed.
+    #[serde(default)]
+    pub data: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -122,6 +127,8 @@ fn profile_name(p: u8) -> &'static str {
 pub struct Writer {
     pub rider_id: String,
     pub protocol_hash: Option<String>,
+    /// Written on each session_start record (`SessionStart::data`).
+    pub data: Option<String>,
     session_id: String,
     mode: Mode,
     seed: u64,
@@ -134,6 +141,7 @@ impl Writer {
         Self {
             rider_id: rider_id.into(),
             protocol_hash,
+            data: None,
             session_id: hex(0),
             mode: Mode::Coach,
             seed: 0,
@@ -174,6 +182,7 @@ impl Writer {
                     profile: profile_name(profile).into(),
                     seed,
                     t_ns,
+                    data: self.data.clone(),
                 })
             }
             LedgerRecord::Cue {

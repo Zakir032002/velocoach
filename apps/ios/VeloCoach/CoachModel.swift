@@ -149,6 +149,12 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         cueCount = 0
         tickCount = 0
         let seed = s.study ? StudyConfig.seed(rider: s.rider, session: s.session) : 42
+        // Provenance for vc-report's banner: every sensor stream here is simulated.
+        let names = ["dana", "sam", "ned", "calib"]
+        let personaName = s.human ? "human-slider"
+            : s.persona >= 1 && Int(s.persona) <= names.count ? names[Int(s.persona) - 1]
+            : scenarios().first { $0.id == s.scenario }?.defaultPersona ?? "default"
+        engine?.setDataLabel(label: "simulated persona=\(personaName) seed=\(seed) link=\(s.inProcess ? "in-process" : "ble")")
         send(encodeLoad(scenario: s.scenario, persona: s.persona, seed: UInt32(truncatingIfNeeded: seed), human: s.human),
                   withResponse: true)
         send(encodeStart(), withResponse: true)

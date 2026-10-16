@@ -658,6 +658,12 @@ impl Engine {
         lock(&self.writer).rider_id = rider_id;
     }
 
+    /// The provenance written on the next session_start record and printed on vc-report's
+    /// banner, e.g. "simulated persona=calib seed=42 link=ble". Set before `start`.
+    pub fn set_data_label(&self, label: String) {
+        lock(&self.writer).data = Some(label);
+    }
+
     pub fn end_session(&self, t_ns: u64) {
         lock(&self.inner).end_session(t_ns);
     }

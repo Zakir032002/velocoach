@@ -1,4 +1,4 @@
-//! vc-report ledger/*.jsonl -o report.html [--audit] [--audit-only] [--exclude-rider ID]...
+//! vc-report ledger/*.jsonl -o report.html [--title TEXT] [--audit] [--audit-only] [--exclude-rider ID]...
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -9,6 +9,11 @@ fn main() -> ExitCode {
         .and_then(|i| args.get(i + 1))
         .cloned()
         .unwrap_or_else(|| "report.html".into());
+    let title = args
+        .iter()
+        .position(|a| a == "--title")
+        .and_then(|i| args.get(i + 1))
+        .map_or("velocoach-rs report card", String::as_str);
     let audit = args.iter().any(|a| a == "--audit");
     let files: Vec<&String> = args.iter().filter(|a| a.ends_with(".jsonl")).collect();
     let (mut lines, mut bad) = (Vec::new(), 0);
@@ -38,10 +43,7 @@ fn main() -> ExitCode {
     });
     let audit_only = args.iter().any(|a| a == "--audit-only");
     if !audit_only {
-        if let Err(e) = std::fs::write(
-            &out,
-            vc_report::html::render(&lines, "velocoach-rs report card"),
-        ) {
+        if let Err(e) = std::fs::write(&out, vc_report::html::render(&lines, title)) {
             eprintln!("{out}: {e}");
             return ExitCode::FAILURE;
         }

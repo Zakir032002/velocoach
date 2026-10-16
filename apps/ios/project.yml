@@ -37,7 +37,7 @@ targets:
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         # Info.plist keys, not entitlements: allowed on a free personal team. If signing ever
-        # rejects them, delete these two lines and keep the app in the foreground while riding.
+        # rejects them, run scripts/setup-ios.sh --no-background and keep the app in the foreground.
         UIBackgroundModes: [bluetooth-central, audio]
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]

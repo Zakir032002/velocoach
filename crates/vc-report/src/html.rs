@@ -233,7 +233,8 @@ fn latency_histogram(cues: &[&CueLine]) -> String {
     }
     svg.push_str(r#"<text x="40" y="170" font-size="11">-2 s</text><text x="590" y="170" font-size="11">15 s</text></svg>"#);
     format!(
-        "{svg}<ul>{summary}</ul><p>L_obs is measured from the end of the phrase and includes about 2.0 s of 3-s smoothing lag.</p>"
+        "{svg}<ul>{summary}</ul><p>L_obs is measured from the end of the phrase and includes the observer's derived smoothing lag of {lag:.3} s ((N − 1)/2 · Ts of the 3-s mean + half a 1-s bin).</p>",
+        lag = f64::from(vc_efficacy::observer::SMOOTHING_LAG_MS) / 1000.0
     )
 }
 
@@ -315,6 +316,48 @@ fn what_if(cues: &[&CueLine]) -> String {
     )
 }
 
+/// The provenance banner, fixed to the top of the screen and of every printed page:
+/// "SIMULATED DATA — persona …, seeds …, observer_version …", from the session_start records.
+pub fn banner(lines: &[Line]) -> String {
+    use std::collections::BTreeSet;
+    let (mut personas, mut seeds, mut versions) =
+        (BTreeSet::new(), BTreeSet::new(), BTreeSet::new());
+    for l in lines {
+        match l {
+            Line::SessionStart(s) => {
+                seeds.insert(s.seed);
+                versions.insert(s.observer_version.clone());
+                let persona = s
+                    .data
+                    .as_deref()
+                    .and_then(|d| {
+                        d.split_whitespace()
+                            .find_map(|w| w.strip_prefix("persona="))
+                    })
+                    .unwrap_or("not recorded");
+                personas.insert(persona.to_string());
+            }
+            Line::Cue(c) => {
+                versions.insert(c.observer_version.clone());
+            }
+            _ => {}
+        }
+    }
+    let list = |v: Vec<String>| {
+        if v.is_empty() {
+            "none".to_string()
+        } else {
+            v.join(", ")
+        }
+    };
+    format!(
+        "SIMULATED DATA — persona {}, seeds {}, observer_version {}",
+        list(personas.into_iter().collect()),
+        list(seeds.iter().map(u64::to_string).collect()),
+        list(versions.into_iter().collect())
+    )
+}
+
 pub fn render(lines: &[Line], title: &str) -> String {
     let cues: Vec<&CueLine> = lines
         .iter()
@@ -346,11 +389,13 @@ pub fn render(lines: &[Line], title: &str) -> String {
         }
     }
     tuner.push_str("</table>");
+    let banner = esc(&banner(lines));
     format!(
         r#"<!doctype html><html><head><meta charset="utf-8"><title>{title}</title>
-<style>body{{font:14px system-ui,sans-serif;max-width:720px;margin:24px auto;padding:0 16px}}table{{border-collapse:collapse}}td,th{{padding:3px 8px;border-bottom:1px solid #ddd;text-align:left}}</style></head><body>
+<style>body{{font:14px system-ui,sans-serif;max-width:720px;margin:24px auto;padding:48px 16px 0}}table{{border-collapse:collapse}}td,th{{padding:3px 8px;border-bottom:1px solid #ddd;text-align:left}}.sim{{position:fixed;top:0;left:0;right:0;padding:8px 16px;background:#b00020;color:#fff;font-weight:700;text-align:center;z-index:9}}@media print{{.sim{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}</style></head><body>
+<div class="sim" role="note">{banner}</div>
 <h1>{title}</h1>
-<p><strong>Feasibility pilot · slider proxy, not cycling · personas are assumptions.</strong> n = {n} decision points from {people} people in {s} sessions; {excluded} excluded (Confounded or Invalid). Not powered to detect differences under about 0.2. No p-values are reported.</p>
+<p><strong>Feasibility pilot · slider proxy, not cycling · personas are assumptions.</strong> n = {n} decision points from {people} rider IDs in {s} sessions; {excluded} excluded (Confounded or Invalid). Not powered to detect differences under about 0.2. No p-values are reported.</p>
 <p>Policy hashes: {hashes}</p>
 <h2>Verdict mix per arm</h2>{bars}
 <h2>Compliance per arm (Wilson 95 %)</h2>{wilson}
