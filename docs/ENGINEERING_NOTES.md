@@ -63,10 +63,21 @@ Its type holds four delivery parameters and nothing else; safety is out of
 reach by construction (E3) and the ranges are Aki's (E4); frozen in Study.
 
 ## Fuzzing
-Recorded so far: ctrl 471.5 M executions in 10 minutes (Day 3) and 35.1 M executions
-across the targets (Day 7), 0 crashes. Per-decoder 10-minute logs for all six targets
-(hrm, cpm, csc, telem, ctrl, vcsim) are still to be made with `scripts/fuzz-all.sh 600`:
-hrm __, cpm __, csc __, telem __, ctrl __, vcsim __ million executions, 0 crashes (S4).
+S4, measured 2026-10-16 with `scripts/fuzz-all.sh 600` (cargo-fuzz, libFuzzer, rustc 1.101.0-nightly,
+Linux x86_64, commit `5e82b08`; vcsim re-run separately after the script was edited mid-run).
+Each target ran for 601 s, `-rss_limit_mb=1024`. **0 crashes, 0 timeouts, 0 OOMs.**
+
+| Target | Decoder | Executions in 601 s |
+|---|---|---|
+| hrm | Heart Rate Measurement | 231.6 M |
+| cpm | Cycling Power Measurement | 162.1 M |
+| csc | Cycling Speed and Cadence | 299.7 M |
+| telem | rig telemetry (STAMP, PONG, STATUS, RIDER_INPUT) | 305.3 M |
+| ctrl | rig control (PING … CUE_PLAYED) | 296.0 M |
+| vcsim | the simulator driven by arbitrary CTRL sequences | 0.49 M (each input steps a whole simulator) |
+
+CI runs the same targets for 60 s each on every push ("Fuzz smoke tests"). Earlier records:
+ctrl 471.5 M executions in 10 minutes (Day 3), 35.1 M across targets (Day 7).
 
 ## Decisions and deviations
 | Decision | Why | Cost |

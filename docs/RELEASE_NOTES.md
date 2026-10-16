@@ -18,7 +18,7 @@ not before. Every figure is filled from `results/<stamp>/SUMMARY.md`. Back to th
   fail) and 17/20 on held-out seeds (1003,1005,1013 fail), against ≥ 18/20. **The criterion
   is not met.** See [EFFICACY_CHANGELOG.md](EFFICACY_CHANGELOG.md).
 - E2 6/6, E3/E4 property tests, E6 byte-identical ledgers on Linux and macOS, E8 190/200.
-- Two 60-minute soaks with scripted faults: __. Fuzzing: see ENGINEERING_NOTES.md.
+- Two 60-minute soaks with scripted faults: __. Fuzzing: 6 targets × 10 min, 0 crashes (ENGINEERING_NOTES.md).
 - The pre-registered study protocol has been run end to end in software
   (`scripts/sim-study.sh`). Human pilot: planned, pre-registered, not yet run.
 - Known limits: simulated sensors; one device pair; personas are assumptions; compliance is
