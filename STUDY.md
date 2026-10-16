@@ -1,12 +1,28 @@
 # velocoach-rs mini-study: does a cue move slider effort, and does phrasing matter?
 
-Status: pre-registration. Committed before the first counted session.
-Protocol hash: the git short hash of the commit that adds this file.
-Author: Zakir Shaik. Date: [YYYY-MM-DD].
+**Human pilot: planned, pre-registered, not yet run.** No human session has taken place.
+
+Status: pre-registration, committed before the first counted session. This file is frozen:
+results go to [docs/study/RESULTS.md](docs/study/RESULTS.md), and any later change is a dated
+deviation below.
+Protocol hash: the git short hash of the last commit that changed this file
+(`git log -1 --format=%h -- STUDY.md`), written on every Study-mode record
+(`scripts/check-protocol-hash.sh`).
+Author: Zakir Shaik. Date: 2026-10-16.
 
 This is a feasibility pilot of an instrument, not evidence of efficacy.
 It uses a slider proxy, not cycling. It is not medical research and has not
 been reviewed by an ethics board.
+
+## Instrument (frozen for the pilot)
+- Observer `vc-efficacy 0.3.0` (`OBSERVER_VERSION`); no observer change during the pilot.
+- Its validation against a known simulated rider does **not** meet its criterion: E1 gives
+  15/20 seeds within tolerance on development seeds and 17/20 on held-out seeds, against
+  >= 18/20 ([EFFICACY.md](docs/EFFICACY.md#e1-the-observer-recovers-a-known-rider--criterion-not-met)).
+  Every compliance proportion from this pilot is reported with that caveat.
+- The whole protocol has been run end to end in software, with simulated personas standing
+  in for people ([docs/sim-study/report.html](docs/sim-study/report.html),
+  `scripts/sim-study.sh`). That is a pipeline check, not data about people.
 
 ## Question
 Does a spoken cue change slider-proxy effort within 15 s, and does phrasing matter?
@@ -26,7 +42,9 @@ Within-person, micro-randomised.
 ## Participants
 The author plus up to 2 consenting adult friends, pseudonymised R01-R03.
 No health data: heart rate is simulated; the only input is the slider.
-R00 is the uncounted dry run and is excluded from every analysis.
+R00 is the uncounted dry run and is excluded from every analysis. A session in which the author is
+the only rider, before the pilot, is labelled "n=1 author dry run (engineering feasibility, not
+evidence of efficacy)"; its ledgers live in `data/dry-run/`, apart from `data/study/`.
 
 ## Sessions
 - 3 x 20 min per person on the `creep_pilot` scenario in human mode: 18 cycles of
@@ -89,14 +107,14 @@ Name: ________ Date: ________
 ## Deviations
 Every change after the commit above is listed here, dated, with its reason.
 
-### 2026-10-__ (before the first counted session): aborted sessions
+### 2026-10-16 (before the first counted session): aborted sessions
 If a session ends early for a technical reason (an unrecovered disconnect, a
 crash, audio failing), its data up to that moment is kept and analysed like any
 other, and the session is not repeated: repeating it would give that person
 more exposure than the protocol allows. The time and cause are logged. If a
 participant stops a session themselves, the same rule applies.
 
-### 2026-10-__ (before the first counted session): publishing pseudonymous ledgers
+### 2026-10-16 (before the first counted session): publishing pseudonymous ledgers
 STUDY.md's data-handling section and the consent text allow publishing
 aggregated, pseudonymous results. Criterion M6 (every figure regenerated from
 committed pseudonymous JSONL) needs the per-cue ledgers themselves. The consent
@@ -106,48 +124,4 @@ Ledgers are committed only for participants who tick it; for the others, only
 aggregated figures are published, and M6 is reported for the published subset.
 
 ## Results
-
-Feasibility pilot · slider proxy, not cycling · personas are assumptions.
-n = __ decision points from __ people (R01-R0__) in __ sessions; __ excluded
-(__ Confounded, __ Invalid). Not powered to detect differences under ~0.2.
-No p-values are reported. Analysis: `vc-report runs/study/*/*.jsonl --exclude-rider R00` at commit __.
-
-### Data quality (vc-report --audit)
-M2 arm frequencies sham __ / direct __ / autonomy __ (99 % bounds: pass/fail);
-seed replay __ mismatches. M3 __ P1 records with an arm. M4 __ policy_hash
-value(s). M5 __ % of decision points not Invalid; p95 sync bound __ us.
-Every session's capture replayed identically: yes/no.
-
-### Primary outcomes
-1. Cue vs sham: complied __/__ (__; Wilson 95 % __-__) with a cue,
-   __/__ (__; __-__) with a sham. Pooled within-person difference __
-   (bootstrap 95 % CI __ to __, B = 10,000, seed 20261013).
-2. Autonomy (B) vs direct (A): __/__ (__) vs __/__ (__). Pooled within-person
-   difference __ (95 % CI __ to __).
-
-### Secondary outcomes
-L_onset median (IQR): direct __ s (__-__), autonomy __ s (__-__).
-L_end: __. Sham false-positive rate: __ (Wilson __-__).
-Verdict mix: Partial __, Reversed __, Ignored __.
-Coincidental first moves: __.
-
-### Per person
-(the per-person table from the report)
-
-### Deviations
-(each, as recorded, with its date: the aborted-session rule; the publication line;
-anything else)
-
-### Limitations
-- A slider proxy, not cycling; simulated heart rate; one pair of earbuds.
-- __ people, __ decision points: estimates are wide by design.
-- R01 is the author and not blind to the arms or the hypotheses.
-- Participants were briefed identically but were friends of the author.
-- Compliance is not benefit: a cue followed is not a cue that improved anything.
-- Reaction-time references are floors only (Zak et al. 2023; Buchholtz &
-  Burgess 2020); neither involves understanding a 9-10 syllable phrase.
-- Personas used to validate the observer (E1, E8) are assumptions, not data.
-
-### Consent
-__ participants, __ signed consent sheets (M8); __ agreed to publication of
-their pseudonymous per-cue log.
+Not yet run. The template is [docs/study/RESULTS.md](docs/study/RESULTS.md).
