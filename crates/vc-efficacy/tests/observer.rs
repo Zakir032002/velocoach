@@ -68,7 +68,10 @@ fn a_25_w_step_3_s_after_the_audio_is_complied() {
     let o = ride(&event(100_000, 102_000, -1, 25.0), step_at_105(175.0));
     assert_eq!(o.verdict, Verdict::Complied);
     assert_eq!(o.l_obs_ms, Some(5_000));
-    assert_eq!(o.l_obs_ms.map(|l| l - SMOOTHING_LAG_MS), Some(3_000)); // the rider's real 3 s
+    // The rider's real 3 s, within the 250 ms sample period: this step falls on a bin boundary,
+    // the derived lag is the average over where in a second a step can fall.
+    let rider = o.l_obs_ms.map(|l| l - SMOOTHING_LAG_MS).unwrap();
+    assert!((rider - 3_000).abs() <= 250, "{rider} ms");
     assert!(o.confound.is_empty());
 }
 

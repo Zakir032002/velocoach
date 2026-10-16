@@ -18,9 +18,29 @@ pub const REVERSE_FRAC: f64 = 0.2;
 pub const GRADE_CHANGE_PCT: f64 = 3.0;
 pub const MIN_POWER_W: f64 = 20.0;
 pub const COINCIDENTAL_NS: u64 = 350_000_000;
-/// A step change is detected 1.5-2.5 s after it happens (3-s P3 over 1-s bins),
-/// 2.0 s on average. E1 compares L_obs - SMOOTHING_LAG_MS with the truth.
-pub const SMOOTHING_LAG_MS: i32 = 2_000;
+/// The power telemetry rate the smoothing lag is derived for: cycling power meters, and the
+/// rig, send power at 4 Hz.
+pub const POWER_RATE_HZ: u64 = 4;
+/// P3's window: Aki's 3-second power smoothing.
+pub const P3_WINDOW_S: u64 = 3;
+
+/// Group delay of an N-sample trailing (boxcar) mean at sample period Ts: (N - 1) / 2 * Ts.
+/// A linear-phase filter's step response crosses 50 % exactly at its group delay.
+pub const fn trailing_mean_group_delay_ms(n: u64, ts_ms: u64) -> i32 {
+    ((n - 1) * ts_ms / 2) as i32
+}
+
+/// L_obs is stamped at the end of the 1-s bin in which the hold first reaches the threshold,
+/// so a response falling uniformly within a second is reported half a bin late on average.
+pub const BIN_STAMP_DELAY_MS: i32 = 500;
+
+/// The observer's expected detection lag, derived (not fitted): the 3-s mean's group delay at
+/// the telemetry rate, (3 x 4 - 1) / 2 x 250 ms = 1375 ms, plus half a bin of stamping, 500 ms:
+/// 1875 ms. E1 compares L_obs - SMOOTHING_LAG_MS with the simulated rider's true latency; the
+/// tuner and the ledger's fast-compliance counts subtract it too. See docs/EFFICACY_CHANGELOG.md.
+pub const SMOOTHING_LAG_MS: i32 =
+    trailing_mean_group_delay_ms(P3_WINDOW_S * POWER_RATE_HZ, 1_000 / POWER_RATE_HZ)
+        + BIN_STAMP_DELAY_MS;
 
 /// What the Engine knows at each update, besides the power ring.
 #[derive(Debug, Clone, Copy)]
@@ -141,6 +161,16 @@ impl Window {
         Some(h)
     }
 
+    /// The largest effect over bins k .. k+2. Reversal must hold for the same 3 s that
+    /// compliance must: all three bins at or below the threshold (observer 0.3.0).
+    fn hold_max(&self, ring: &P3Ring, k: u64) -> Option<f64> {
+        let mut h = f64::NEG_INFINITY;
+        for j in k..k + HOLD_BINS {
+            h = h.max(self.effect(ring, j)?);
+        }
+        Some(h)
+    }
+
     fn absorb(&mut self, ctx: &ObsContext<'_>) {
         let mut flag = |cond: bool, c: Confound| {
             if cond {
@@ -182,7 +212,10 @@ impl Window {
             if h >= COMPLY_FRAC * self.delta {
                 return Some((Verdict::Complied, Some(k)));
             }
-            if h <= -REVERSE_FRAC * self.delta {
+            if self
+                .hold_max(ctx.ring, k)
+                .is_some_and(|m| m <= -REVERSE_FRAC * self.delta)
+            {
                 return Some((Verdict::Reversed, Some(k)));
             }
         }

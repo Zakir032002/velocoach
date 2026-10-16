@@ -22,7 +22,7 @@ class SimDriver {
     // Touched only on the sim thread.
     private var sim: Simulator? = null
 
-    @Volatile var humanMode = false
+    @Volatile private var humanOn = false
     private var riderSeq = 0
     private var lastEffort: Short = 700 // the slider's position (thousandths of CP); sim thread only
 
@@ -70,7 +70,7 @@ class SimDriver {
     }
 
     fun setHumanMode(on: Boolean) {
-        humanMode = on
+        humanOn = on
         handler.post { sim?.setHuman(on) }
     }
 
@@ -113,7 +113,7 @@ class SimDriver {
                 }
                 is CtrlReply.Disconnect -> rig?.dropLink(reply.durMs.toLong())
             }
-            if (humanMode) {
+            if (humanOn) {
                 // A LOAD replaced the simulator: the switch still wins, and the slider's position
                 // (not the simulator's default) is the effort.
                 s.setHuman(true)

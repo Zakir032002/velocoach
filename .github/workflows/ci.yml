@@ -90,11 +90,11 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
       - name: E8 (null persona coverage)
         run: cargo test --release -p vc-report --test e8
-      # E1 is OPEN (docs/EFFICACY.md): the observer as specified does not recover Calib's
-      # compliance. Kept running, and visible, but not gating until it is resolved.
-      - name: E1 (observer ground truth) - OPEN, non-gating
-        continue-on-error: true
-        run: cargo test --release -p vc-harness --test e1
+      # E1 prints both tables (development seeds 0-19, held-out seeds 1000-1019) and the
+      # amended criterion's verdict (>= 18/20: NOT met by observer 0.3.0, see EFFICACY.md).
+      # The tests guard the measured 15/20 and 17/20 against regressions.
+      - name: E1 observer ground truth (regression guard; amended criterion not met)
+        run: cargo test --release -p vc-harness --test e1 -- --nocapture
 
   fuzz-smoke:
     name: Fuzz smoke tests
@@ -149,7 +149,7 @@ jobs:
       - name: Compile the coach app (simulator, no signing)
         run: |
           xcodebuild -project apps/ios/VeloCoach.xcodeproj -scheme VeloCoach \
-            -destination 'generic/platform=iOS Simulator' -configuration Debug \
+            -destination 'generic/platform=iOS' -configuration Debug \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tail -50
           exit ${PIPESTATUS[0]}
 

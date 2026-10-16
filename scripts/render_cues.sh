@@ -11,7 +11,7 @@ BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ljspeech
 MODEL="build/voices/$VOICE.onnx"
 PY="build/piper-venv/bin/python"
 
-run() { echo "+ $*"; "$@"; }
+run() { echo "+ $*" >&2; "$@"; }
 
 mkdir -p build/voices build/phrases
 if [[ ! -x "$PY" ]]; then

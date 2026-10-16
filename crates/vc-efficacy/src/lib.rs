@@ -15,7 +15,8 @@ pub use observer::{ObsContext, Observer};
 pub use p3::P3Ring;
 pub use tuner::{Catalogue, Change, Param, Rule, TunablePolicy, Tuner, TunerReport};
 
-pub const OBSERVER_VERSION: &str = "vc-efficacy 0.2.0";
+/// Frozen for the pilot: changes only with an entry in docs/EFFICACY_CHANGELOG.md.
+pub const OBSERVER_VERSION: &str = "vc-efficacy 0.3.0";
 
 /// Coach: tuner on, deterministic round-robin. Study: tuner frozen, arms
 /// randomised. Replay: offline re-scoring of a recorded ride.

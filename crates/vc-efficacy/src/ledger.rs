@@ -290,7 +290,13 @@ mod tests {
         }
         let s = l.stats(1, Arm::Direct, 0).unwrap();
         assert_eq!(s.median_l_obs_ms, Some((3_100 + 3_200) / 2)); // last 16: 2.4 .. 3.9 s
-        assert_eq!(s.counts.complied_under_1s, 10); // L_obs - 2 s < 1 s: 2.0 .. 2.9 s
-        assert_eq!(s.counts.complied_under_2s, 20);
+        // L_obs minus the derived smoothing lag, under 1 s and under 2 s.
+        let fast = |limit: i32| {
+            (0..20)
+                .filter(|i| 2_000 + 100 * i - SMOOTHING_LAG_MS < limit)
+                .count() as u32
+        };
+        assert_eq!(s.counts.complied_under_1s, fast(1_000));
+        assert_eq!(s.counts.complied_under_2s, fast(2_000));
     }
 }

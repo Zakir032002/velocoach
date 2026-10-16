@@ -15,7 +15,7 @@ def main(tsv, model, out):
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     voice = PiperVoice.load(model)
-    rows = [line.split("\t") for line in Path(tsv).read_text().splitlines() if line.strip()]
+    rows = [line.split("\t") for line in Path(tsv).read_text().splitlines() if "\t" in line]
     for key, text, *_ in rows:
         with wave.open(str(out / f"{key}.wav"), "wb") as w:
             voice.synthesize_wav(text, w)
