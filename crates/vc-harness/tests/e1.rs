@@ -157,10 +157,11 @@ fn report(label: &str, seeds: impl Iterator<Item = u64>) -> Vec<SeedResult> {
             if r.passes() { "yes" } else { "**no**" }
         );
     }
-    let failing: Vec<String> = results
+    let failing: Vec<&SeedResult> = results.iter().filter(|r| !r.passes()).collect();
+    let ids: Vec<String> = failing.iter().map(|r| r.seed.to_string()).collect();
+    let values: Vec<String> = failing
         .iter()
-        .filter(|r| !r.passes())
-        .map(|r| format!("{} ({:.3}, {:.2} s)", r.seed, r.compliance, r.latency_s))
+        .map(|r| format!("{:.3}/{:.2} s", r.compliance, r.latency_s))
         .collect();
     println!(
         "E1 {label}: {}/{} seeds within tolerance{}",
@@ -169,7 +170,7 @@ fn report(label: &str, seeds: impl Iterator<Item = u64>) -> Vec<SeedResult> {
         if failing.is_empty() {
             String::new()
         } else {
-            format!(" (seeds failing: {})", failing.join(", "))
+            format!(" (seeds {} fail: {})", ids.join(","), values.join(", "))
         }
     );
     results
