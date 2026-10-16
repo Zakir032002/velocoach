@@ -46,9 +46,10 @@ done
 
 # 5. Wording.
 o=$(git grep -n -i -w -E 'validated|proven|efficacy shown|E1 (green|passed)' -- README.md STUDY.md docs/EFFICACY.md docs/LATENCY.md docs/VIDEO_SCRIPT.md docs/RELEASE_NOTES.md \
-    | grep -v -i -E "do not|don't|never|not say|cannot say|\"validated\"" || true)
+    | grep -v -i -E "do not|don't|never|not say|cannot say|\"(validated|proven|efficacy shown|E1 passed)\"" || true)
 [[ -z "$o" ]] && pass "no overclaiming words in the public documents" || bad "overclaiming: $o"
-u=$(git grep -n -w 'users' -- README.md STUDY.md docs/VIDEO_SCRIPT.md | grep -v -i "not say\|don't" || true)
+# A word in quotes is a list of words not to use (VIDEO_SCRIPT.md's "Do not say"), not a claim.
+u=$(git grep -n -w 'users' -- README.md STUDY.md docs/VIDEO_SCRIPT.md | grep -v -i "not say\|don't\|\"users\"" || true)
 [[ -z "$u" ]] && pass "no \"users\"" || bad "\"users\": $u"
 grep -q 'SIMULATED sensors\|SIMULATED' README.md && pass "README says SIMULATED" || bad "README lacks the SIMULATED claim"
 grep -q 'Human pilot: planned, pre-registered, not yet run' README.md STUDY.md && pass "pilot labelled not yet run" || bad "pilot label missing"
