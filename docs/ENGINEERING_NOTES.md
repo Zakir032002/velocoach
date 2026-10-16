@@ -49,7 +49,7 @@ generation so interrupted or reset clips are reported once, as failed.
 
 ## The observer
 Anchor = the last complete second before onset (a mid-phrase reaction cannot
-move the baseline); L_obs includes a documented ~2.0 s smoothing lag; any hole
+move the baseline); L_obs includes a derived 1.875 s smoothing lag ((N - 1)/2 · Ts + half a bin); any hole
 in the data is a confounder; shams scored like cues; the surge's "go now" is
 the only P1 cue observed (the tuner's T1 needs it).
 

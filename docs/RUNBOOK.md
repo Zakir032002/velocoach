@@ -1,6 +1,10 @@
 # Study runbook
 
 The operating procedure for the pilot in [STUDY.md](../STUDY.md) (Days 16-18).
+
+**Human pilot: planned, pre-registered, not yet run.** This runbook is for when it is run.
+Phone set-up is in [PHONE_CHECKLIST.md](PHONE_CHECKLIST.md). The pilot uses `creep_pilot` with
+the slider starting at 70 %.
 Print it; tick it every time. Most mistakes in small studies are a wrong rider
 number or a forgotten setting, not a bug.
 

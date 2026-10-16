@@ -1,16 +1,25 @@
-## velocoach-rs v1.0.0
+# Release notes (drafts)
 
-A closed-loop voice coach in Rust that measures whether its own cues work.
+Tags are made by the author after the phone runs ([PHONE_CHECKLIST.md](PHONE_CHECKLIST.md)),
+not before. Every figure is filled from `results/<stamp>/SUMMARY.md`. Back to the
+[README](../README.md).
 
-- Gates passed: G-11 (v0.1.0, two phones, replay), G-14 (v0.2.0, headless
-  closed loop), and this release.
-- Latency: T1->T2 p99 __ us; T0->T3 p99 __ ms +/- __ ms; earbud route __ ms (loopback).
-- Robustness: two 60-minute soaks with scripted faults, __; __ M fuzz executions,
-  __ crashes.
-- Instrument: E1 (observer recovers a known rider) **open: see docs/EFFICACY.md**, E2
-  (every confounder), E3/E4 (the tuner cannot reach safety; bounded), E6 (byte-identical
-  ledgers across operating systems), E8 (statistics calibrated with a null rider, 190/200).
-- Feasibility pilot: n = __ decision points from __ people, slider proxy, not
-  cycling. See STUDY.md.
-- Known limits: simulated sensors; one device pair; observer latency includes
-  ~2 s smoothing; personas are assumptions.
+## v0.1.0: two phones, real BLE, simulated sensors (after the first phone run)
+
+- The iPhone 12 coach and the iQOO rig connect over real BLE. Sensors are simulated.
+- BLE notify → core decision (T1→T2) p99 __ µs; sensor send → audio scheduled (T0→T3)
+  p99 __ ms ± __ ms (clock-sync bound). Earbud audio-output latency: not measured.
+- The device capture replays to the same decisions: yes/no.
+- In-process fallback (L1) on the iPhone, labelled "no radio".
+
+## v0.2.0: the instrument (after the soak runs)
+
+- Observer `vc-efficacy 0.3.0`, frozen. E1: 15/20 seeds within tolerance (seeds 4,5,8,12,17
+  fail) and 17/20 on held-out seeds (1003,1005,1013 fail), against ≥ 18/20. **The criterion
+  is not met.** See [EFFICACY_CHANGELOG.md](EFFICACY_CHANGELOG.md).
+- E2 6/6, E3/E4 property tests, E6 byte-identical ledgers on Linux and macOS, E8 190/200.
+- Two 60-minute soaks with scripted faults: __. Fuzzing: see ENGINEERING_NOTES.md.
+- The pre-registered study protocol has been run end to end in software
+  (`scripts/sim-study.sh`). Human pilot: planned, pre-registered, not yet run.
+- Known limits: simulated sensors; one device pair; personas are assumptions; compliance is
+  not benefit.

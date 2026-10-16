@@ -27,8 +27,8 @@ the phones (below).
 
 | Scene | Command | Result |
 |---|---|---|
-| D1 (headless twin) | `vc-cli sim --scenario climb_surge` | W′-low cue 3 at 529.5 s (`WPL_D`, direct), observer: complied, L_obs 3.0 s (the persona's true reaction: 1.2 s; the ~2 s difference is the smoothing lag); cue 7 at 869.75 s (autonomy), L_obs 3.8 s. Surge countdown/go-now at 295/300 s and 715/720 s |
-| D2 | `vc-cli sim --scenario creep_long --jsonl /tmp/d2.jsonl` then `grep tuner_change /tmp/d2.jsonl` | one `tuner_change`: rule T3, `default_variant:GREY_ZONE_DRIFT` 0 -> 1 (Direct -> Autonomy), n = 16, evidence 0.5, at 2,520 s (42:00). Total ride 3,120 s |
+| D1 (headless twin) | `vc-cli sim --scenario climb_surge` | W′-low cue 3 at 529.5 s (`WPL_D`, direct), observer: complied, L_obs 3.0 s (the persona's true reaction: 1.2 s; the 1.8 s difference is the observer's derived smoothing lag, 1.875 s, to within the 0.25-s sample grid); cue 7 at 869.75 s (autonomy), L_obs 3.8 s. Surge countdown/go-now at 295/300 s and 715/720 s |
+| D2 | `vc-cli sim --scenario creep_long --jsonl /tmp/d2.jsonl` then `grep tuner_change /tmp/d2.jsonl` | one `tuner_change`: rule T3, `default_variant:GREY_ZONE_DRIFT` 0 -> 1 (Direct -> Autonomy), n = 16, evidence 0.375 (observer 0.3.0; it was 0.5 under 0.2.0), at 2,520 s (42:00). Total ride 3,120 s |
 | D3 | `vc-cli find-interrupt --scenario recovery_drift` | HR-redline fault at 846, 847 or 848 s makes the safety cue interrupt a phrase at 1,083.0 s. Use **847 s**, the middle of the run of hits |
 | D4 | `vc-cli sim --scenario grade_demo` | the grey-zone cue at 441.0 s is `confounded ... ? grade` (the second -6 % pulse falls inside its window). Note: the original `grade_confound` scenario scores the same cue `complied`, because its grade block ends at 430 s, before the cue's onset, so it cannot show `? grade` |
 | D5 | `vc-cli sim --scenario dropout` | the SENSOR_DROPOUT cue at 608.25 s |
@@ -64,7 +64,7 @@ time (+/- a second on the phones). Write each one's numbers here.
 
 | If a scene... | Then |
 |---|---|
-| D1's badge reads about 3.8 s, not 1.8 s expected | in Coach mode the badge shows L_obs, which includes the 2 s smoothing lag. Say so in the voiceover ("about two seconds of that is the smoothing"); do not change the badge for the video |
+| D1's badge reads about 3.8 s, not 1.8 s expected | in Coach mode the badge shows L_obs, which includes the derived 1.875 s smoothing lag. Say so in the voiceover ("about two seconds of that is the smoothing"); do not change the badge for the video |
 | D2 shows no `tuner_change` | Sam's direct and autonomy counts never both reached 8; read the report card's per-arm counts and lengthen the run (another creep block) rather than lowering the threshold |
 | D3 never interrupts on the phone | the phone's cue times drifted from the simulation's; try the neighbouring hits from find-interrupt |
 | D4 shows `? grade` on the wrong cue | the window that straddles the grade change is the one that should be confounded; check which cue's window contains it |
@@ -91,6 +91,10 @@ earbuds for those takes, and put a caption on screen: **"A rider would hear this
 open-ear headphones."**
 
 ## The video, as the plan specifies it
+
+> **Superseded by [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md).** The plan below assumed pilot results
+> and a measured earbud latency. The pilot has not been run and earbud latency is not
+> measured, so neither may appear in the video. Kept for the shot ideas only.
 
 | Time | Shot | Line |
 |---|---|---|

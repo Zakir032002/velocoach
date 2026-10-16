@@ -1,5 +1,13 @@
 # Plan versus repository
 
+> **Update 2026-10-16.** The decisions asked for here were answered (ANSWERS v1: 1A 2A* 3A 4C
+> 5A 6B) and applied: observer 0.3.0 ([EFFICACY_CHANGELOG.md](EFFICACY_CHANGELOG.md)), the
+> Android Gradle and XcodeGen projects (both built in CI), the setup scripts, the
+> pre-registration, the cue bank and the README status table. The README's
+> [Status](../README.md#status) table is the current state. What remains is the phone work
+> in [PHONE_CHECKLIST.md](PHONE_CHECKLIST.md). This document is kept as the record of the audit.
+
+
 A comparison of what the plan and the day-by-day implementation documents (Days 5-20) ask
 for against what the repository now contains. Basis: the master plan ("Final Plan, Days
 5-20") and the Day 9-10, 11-12, 13-14, 15-16, 17-18 and 19-20 implementation documents,
@@ -58,7 +66,7 @@ Legend: **green** = passes in this repo today; **field** = needs a phone, a pers
 
 | ID | Criterion | Status | Evidence / what remains |
 |---|---|---|---|
-| E1 | observer recovers Calib (20 seeds x 200 cues) | **open** | 0/20 in band, compliance 0.28-0.38; diagnosis and 18/20 experiment in EFFICACY.md |
+| E1 | observer recovers Calib (20 seeds x 200 cues) | **criterion not met** | observer 0.3.0: 15/20 seeds within tolerance (seeds 4,5,8,12,17 fail), held-out 17/20 (seeds 1003,1005,1013 fail), against the amended >= 18/20; 0.2.0 was 0/20. EFFICACY.md, EFFICACY_CHANGELOG.md |
 | E2 | every confounder -> Confounded | green | 6/6 + control |
 | E3 | tuner cannot reach safety P1 | green | `e3`, `tuner_props` |
 | E4 | tuned params in bounds | green | `tuner_props` |

@@ -1,5 +1,13 @@
 # Completion guide
 
+> **Update 2026-10-16.** The decisions asked for here were answered (ANSWERS v1: 1A 2A* 3A 4C
+> 5A 6B) and applied: observer 0.3.0 ([EFFICACY_CHANGELOG.md](EFFICACY_CHANGELOG.md)), the
+> Android Gradle and XcodeGen projects (both built in CI), the setup scripts, the
+> pre-registration, the cue bank and the README status table. The README's
+> [Status](../README.md#status) table is the current state. What remains is the phone work
+> in [PHONE_CHECKLIST.md](PHONE_CHECKLIST.md). This document is kept as the record of the audit.
+
+
 How to take the repository from "all code and documents applied" to a shipped
 v1.0.0 with a pilot, a video and a message. Read [PLAN_VS_REPO.md](PLAN_VS_REPO.md)
 first for what exists and what does not. Everything below is human work: phones,

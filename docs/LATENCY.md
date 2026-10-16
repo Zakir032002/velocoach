@@ -1,5 +1,11 @@
 # Latency
 
+**Status: pending.** No hardware run has been recorded yet; every `__` below is filled from
+`scripts/collect-results.sh` after the phone runs ([PHONE_CHECKLIST.md](PHONE_CHECKLIST.md)).
+Sensors are simulated in every run. **Earbud audio-output latency is not measured** (generic
+earbuds); no figure for it is claimed anywhere in this repository. Back to the
+[README](../README.md).
+
 All times are on the iPhone's clock (mach_continuous_time) except T0, which is
 the iQOO's clock mapped onto the iPhone's by clock sync. Every number that
 involves T0 carries the sync bound.
@@ -13,7 +19,7 @@ involves T0 carries the sync bound.
 | T3 | the cue's scheduled render start (AVAudioTime hostTime = now + lead_ms) |
 | T4 = t_on | the cue reaches the ear: T3 + d_route |
 | t_end | T3 + clip length + d_route |
-| L_obs | observer latency from t_end (includes ~2.0 s of 3-s smoothing lag) |
+| L_obs | observer latency from t_end (includes the derived 1.875 s smoothing lag: (12 - 1)/2 x 250 ms + 500 ms) |
 | L_onset, L_end | human mode: first 5 % slider move minus t_on / t_end |
 
 ## Clock sync
@@ -22,7 +28,7 @@ the minimum-RTT sample of the last 16; error bound +/- rtt_min / 2.
 Measured: rtt_min __ us, bound +/- __ us; 95th percentile of the per-cue bound
 over the dry run: __ us (M5 requires <= 15 ms). T0 later than T1: __ times.
 
-## S1 — decision time in Rust (T1 -> T2)
+## S1 — BLE notify to core decision (T1 -> T2)
 iPhone 12, 15 min, capture off: p50 __ us, p90 __, p99 __, max __ (n = __).
 With capture on: p99 __ us. Target: p99 < 1 ms.
 
@@ -35,7 +41,10 @@ T1 -> T3 includes the deliberate 50 ms scheduling lead: p50 __ ms.
 Tick-released cues (countdowns, grace windows) have no T0: T1 -> T3 p50 __ ms.
 Target: p99 < 150 ms with the bound shown.
 
-## S3 — to the ear (T0 -> T4), reported, not promised
+## S3 — to the ear (T0 -> T4): not measured
+Earbud output latency is treated as unmeasured. The loopback method below exists; if it is
+run, its result goes here with its method. Until then: not measured.
+
 | Route | outputLatency (T4_est - T3) | loopback d_route (T4_meas - T3) |
 |---|---|---|
 | earbuds (__ model) | __ ms | median __ ms, IQR __-__ ms (20 reps) |

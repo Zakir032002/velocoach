@@ -21,6 +21,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # M1: the protocol hash is STUDY.md's last commit
 
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
@@ -75,6 +77,16 @@ jobs:
         run: |
           cargo run -q -p vc-report -- golden/creep_study_11.jsonl -o /tmp/example.html
           cmp /tmp/example.html docs/examples/creep_study_11.html
+
+      - name: M1 protocol hash in the app is STUDY.md's commit
+        run: bash scripts/check-protocol-hash.sh
+
+      - name: Human pilot not run - no counted study ledgers before the pilot
+        run: |
+          grep -q "Human pilot: planned, pre-registered, not yet run" STUDY.md README.md
+          if ls data/study/*.jsonl >/dev/null 2>&1; then
+            echo "data/study/ has ledgers: remove the 'not yet run' label from STUDY.md and README.md first"; exit 1
+          fi
 
       - name: M7 mandatory labels present
         run: |
