@@ -1,0 +1,41 @@
+name: Render cue audio
+
+# Renders the cue bank with Piper en_US-ljspeech-medium (public-domain dataset) and commits
+# assets/cues/ back to the branch, so nobody needs Piper locally. Run it from the Actions tab
+# (or it runs when the phrase bank or the render tools change).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - crates/vc-core/src/phrase.rs
+      - tools/make_earcons.py
+      - tools/render_phrases.py
+      - scripts/render_cues.sh
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev pkg-config
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Render
+        run: bash scripts/render_cues.sh
+      - name: Commit the rendered cues
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/cues
+          if git diff --cached --quiet; then
+            echo "cue bank unchanged"
+          else
+            git commit -m "assets: render cue bank (Piper en_US-ljspeech-medium)"
+            git push
+          fi

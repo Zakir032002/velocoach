@@ -137,7 +137,9 @@ final class AudioCuePlayer {
     // MARK: setup and recovery
 
     private func loadBank() {
-        guard let dir = Bundle.main.url(forResource: "Cues", withExtension: nil),
+        // assets/cues, bundled as a folder reference (scripts/render_cues.sh makes it).
+        guard let dir = Bundle.main.url(forResource: "cues", withExtension: nil)
+                ?? Bundle.main.url(forResource: "Cues", withExtension: nil),
               let data = try? Data(contentsOf: dir.appendingPathComponent("manifest.json")),
               let manifest = try? JSONDecoder().decode(Manifest.self, from: data)
         else {

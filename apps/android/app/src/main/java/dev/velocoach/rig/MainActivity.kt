@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -23,11 +24,13 @@ import dev.velocoach.ffi.encodeStop
 import dev.velocoach.ffi.scenarios
 
 class MainActivity : Activity() {
-    private val perms = arrayOf(
-        Manifest.permission.BLUETOOTH_ADVERTISE,
-        Manifest.permission.BLUETOOTH_CONNECT,
-        Manifest.permission.POST_NOTIFICATIONS,
-    )
+    // POST_NOTIFICATIONS is a runtime permission only from Android 13; asking for it earlier
+    // is always "denied", which would keep the rig from starting.
+    private val perms = buildList {
+        add(Manifest.permission.BLUETOOTH_ADVERTISE)
+        add(Manifest.permission.BLUETOOTH_CONNECT)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) add(Manifest.permission.POST_NOTIFICATIONS)
+    }.toTypedArray()
     private val ui = Handler(Looper.getMainLooper())
     private lateinit var status: TextView
     private lateinit var scenario: Spinner

@@ -27,12 +27,22 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     @Published var rider = 0 // index into StudyConfig.riders
     @Published var session = 1
     @Published var humanRider = false
+    /// Lite path L1: run the Simulator on this iPhone instead of the iQOO (no radio).
+    @Published var inProcess = false
+    /// The on-screen slider for human mode in L1, thousandths of CP.
+    @Published var localEffort: Double = 700 {
+        didSet {
+            let p = Int16(localEffort.rounded())
+            q.async { if self.useLocal { self.local.setEffort(p) } }
+        }
+    }
     /// Debug field: ride second at which an HR-redline fault is sent (demo scene D3).
     @Published var redlineAtS = ""
 
     let audio: AudioCuePlayer
     private let ble = BLECentral()
     private var q: DispatchQueue { ble.queue }
+    private var local: InProcessRig!
 
     /// Everything the ride needs from the screen, copied on main before hopping to ble.q.
     private struct RideSettings {
@@ -43,6 +53,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         let session: Int
         let human: Bool
         let redlineAtS: Int?
+        let inProcess: Bool
     }
 
     // ble.q only.
@@ -57,12 +68,17 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     private var reconnects = 0
     private var cueCount = 0
     private var soakActive = false
+    private var useLocal = false // L1: CTRL goes to the in-process rig, BLE data is ignored
     private var rideGeneration = 0 // scheduled RATE/FAULT messages of an older ride must not fire
 
     init() {
         audio = AudioCuePlayer(queue: ble.queue)
         ble.delegate = self
         audio.delegate = self
+        local = InProcessRig(queue: ble.queue) { [weak self] bytes, source, t1 in
+            guard let self, self.useLocal else { return }
+            self.ingest(bytes, from: source, t1: t1)
+        }
         UIDevice.current.isBatteryMonitoringEnabled = true
         DispatchQueue.global(qos: .utility).async {
             let hash = (try? Engine.forScenario(cfg: Self.config(), scenarioId: 1))?.snapshot().policyHash ?? ""
@@ -80,13 +96,15 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     func startRide() {
         let settings = RideSettings(
             scenario: scenarioId, persona: persona, study: studyMode, rider: rider, session: session,
-            human: humanRider, redlineAtS: Int(redlineAtS.trimmingCharacters(in: .whitespaces)))
+            human: humanRider, redlineAtS: Int(redlineAtS.trimmingCharacters(in: .whitespaces)),
+            inProcess: inProcess)
         q.async { self.beginRide(settings) }
     }
 
     func stopRide() {
         q.async {
-            self.ble.write(encodeStop(), withResponse: true)
+            self.send(encodeStop(), withResponse: true)
+            self.local.end()
             self.timer?.cancel()
             self.timer = nil
             self.rideGeneration += 1
@@ -122,6 +140,8 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         }
         rideGeneration += 1
         let gen = rideGeneration
+        useLocal = s.inProcess
+        if useLocal { local.begin() }
         rideHuman = s.human
         lastOutcomeId = nil
         skewFlags = 0
@@ -129,9 +149,9 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         cueCount = 0
         tickCount = 0
         let seed = s.study ? StudyConfig.seed(rider: s.rider, session: s.session) : 42
-        ble.write(encodeLoad(scenario: s.scenario, persona: s.persona, seed: UInt32(truncatingIfNeeded: seed), human: s.human),
+        send(encodeLoad(scenario: s.scenario, persona: s.persona, seed: UInt32(truncatingIfNeeded: seed), human: s.human),
                   withResponse: true)
-        ble.write(encodeStart(), withResponse: true)
+        send(encodeStart(), withResponse: true)
         let now = Clock.nowNs()
         startNs = now
         lastTick = now
@@ -182,13 +202,26 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         timer = t
     }
 
+    // MARK: the link (ble.q)
+
+    /// CTRL to the rig: over BLE, or to the in-process simulator in L1.
+    private func send(_ data: Data, withResponse: Bool) {
+        if useLocal {
+            local.apply(data)
+        } else {
+            ble.write(data, withResponse: withResponse)
+        }
+    }
+
+    private var linkText: String { useLocal ? "in-process (L1, no radio)" : ble.stateText }
+
     // MARK: clock sync (ble.q)
 
     private func sendPing() {
         guard let e = engine else { return }
         let a = Clock.nowNs() // a: just before the write
         let id = e.makePing(tNs: a)
-        ble.write(encodePing(pingId: id, tClientNs: a), withResponse: false)
+        send(encodePing(pingId: id, tClientNs: a), withResponse: false)
     }
 
     private func pingBurst() {
@@ -204,7 +237,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         for (at, hz) in plan {
             q.asyncAfter(deadline: .now() + .seconds(at)) { [weak self] in
                 guard let self, self.engine != nil, self.rideGeneration == gen else { return }
-                self.ble.write(encodeRate(channel: .cpm, hzX10: hz), withResponse: true)
+                self.send(encodeRate(channel: .cpm, hzX10: hz), withResponse: true)
                 self.soakEvent("RATE cpm \(Double(hz) / 10) Hz")
             }
         }
@@ -214,7 +247,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     private func scheduleHrRedline(at: Int, _ gen: Int) {
         q.asyncAfter(deadline: .now() + .seconds(at)) { [weak self] in
             guard let self, self.engine != nil, self.rideGeneration == gen else { return }
-            self.ble.write(encodeFault(kind: .hrRedline, channel: .all, durMs: 300_000, param: 0), withResponse: true)
+            self.send(encodeFault(kind: .hrRedline, channel: .all, durMs: 300_000, param: 0), withResponse: true)
         }
     }
 
@@ -227,7 +260,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         let t2 = Clock.nowNs() // T2: the Engine has decided
         if let d { handle(d, at: now, t2: t2) }
         let s = e.snapshot()
-        let link = ble.stateText
+        let link = linkText
         DispatchQueue.main.async {
             self.snapshot = s
             self.link = link
@@ -255,7 +288,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         }
         let t0t3 = line("T0→T3", .t0t3, ms: true, note: "packet-triggered cues;")
         let bound = c.boundUs.map { String(format: " ± %.0f µs", $0) } ?? ""
-        return [
+        let lines = [
             String(format: "clock   θ %@ ms · rtt_min %@ µs · ±%@ µs (n %u)",
                    c.thetaMs.map { String(format: "%.1f", $0) } ?? "–",
                    c.rttMinUs.map { String(format: "%.0f", $0) } ?? "–",
@@ -266,9 +299,16 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
             t0t3 + bound,
             "stamps \(ls.stamps) · lost \(ls.stampsLost) · T0>T1 \(ls.negativeT0t1) · skew flags \(skewFlags)",
         ]
+        // L1 has no radio: say so on every number.
+        return useLocal ? ["IN-PROCESS (L1): no BLE, latency is not over the air"] + lines : lines
     }
 
     func central(didReceive bytes: Data, from source: Source, t1: UInt64) {
+        guard !useLocal else { return } // L1 ride: the iQOO is not the rig
+        ingest(bytes, from: source, t1: t1)
+    }
+
+    private func ingest(_ bytes: Data, from source: Source, t1: UInt64) {
         guard let e = engine else { return }
         let d = e.ingest(tNs: t1, source: source, bytes: bytes)
         let t2 = Clock.nowNs() // T2: the Engine has decided
@@ -278,6 +318,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
     }
 
     func centralDidConnect() {
+        guard !useLocal else { return }
         // Before the first notification of the new link: the rig's packet numbering restarts now.
         engine?.resetLink()
         if engine != nil {
@@ -288,11 +329,12 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
 
     func centralDidBecomeReady() {
         pingBurst()
-        let link = ble.stateText
+        let link = linkText
         DispatchQueue.main.async { self.link = link }
     }
 
     func centralDidDisconnect() {
+        guard !useLocal else { return }
         // The Engine's quality states and the dropout cue handle silence; the soak log notes it.
         soakEvent("disconnect")
     }
@@ -311,7 +353,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
             return
         }
         engine?.onCueScheduled(cueId: d.id, t2Ns: t2, t3Ns: played.t3Ns)
-        ble.write(encodeCuePlayed(d: d, durMs: played.durMs), withResponse: false)
+        send(encodeCuePlayed(d: d, durMs: played.durMs), withResponse: false)
     }
 
     // MARK: badges
@@ -412,7 +454,7 @@ final class CoachModel: ObservableObject, BLECentralDelegate, AudioCuePlayerDele
         let t = Double(Clock.nowNs() - startNs) / 1e9
         let battery = Int(UIDevice.current.batteryLevel * 100)
         let row = String(format: "%.1f,%@,%@,%@,%@,%@,%u,%u,%u,%u,%ld,%ld,%.0f,%.1f,%.0f,%ld\n",
-                         t, event, ble.stateText, s.hrQuality, s.powerQuality, s.cadenceQuality,
+                         t, event, linkText, s.hrQuality, s.powerQuality, s.cadenceQuality,
                          s.decodeErrors, s.implausible, link.stamps, link.stampsLost,
                          reconnects, cueCount, t1t2.p99Us, t0t3.p99Us / 1000, clock.boundUs ?? -1,
                          battery)

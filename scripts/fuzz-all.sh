@@ -32,6 +32,7 @@ run() {
         fi
     else
         echo "$target: FAILED — inspect $log"
+        tail -25 "$log"
         failed=1
     fi
 }

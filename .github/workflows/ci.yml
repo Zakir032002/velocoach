@@ -125,8 +125,8 @@ jobs:
         run: bash scripts/fuzz-all.sh 60
 
   ios:
-    name: Build iOS XCFramework
-    runs-on: macos-14
+    name: Build iOS XCFramework and compile the coach app
+    runs-on: macos-15
 
     steps:
       - name: Check out repository
@@ -141,8 +141,20 @@ jobs:
       - name: Build iOS XCFramework and Swift bindings
         run: bash scripts/build-ios.sh
 
+      - name: Generate the Xcode project (XcodeGen)
+        run: |
+          brew install xcodegen
+          cd apps/ios && xcodegen generate
+
+      - name: Compile the coach app (simulator, no signing)
+        run: |
+          xcodebuild -project apps/ios/VeloCoach.xcodeproj -scheme VeloCoach \
+            -destination 'generic/platform=iOS Simulator' -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build | tail -50
+          exit ${PIPESTATUS[0]}
+
   android:
-    name: Build Android native library and Kotlin bindings
+    name: Build the Android rig (native library, bindings, APK)
     runs-on: ubuntu-latest
 
     steps:
@@ -173,3 +185,20 @@ jobs:
         run: bash scripts/build-android.sh
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build the rig app (APK)
+        working-directory: apps/android
+        run: ./gradlew --no-daemon :app:assembleDebug
+
+      - name: Upload the rig APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: rig-apk
+          path: apps/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

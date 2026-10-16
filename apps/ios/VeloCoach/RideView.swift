@@ -32,11 +32,19 @@ struct RideView: View {
 
                 HStack {
                     Button("Start") { model.startRide() }
-                        .disabled(model.link != "ready" || model.running)
+                        .disabled((model.link != "ready" && !model.inProcess) || model.running)
                     Button("Stop") { model.stopRide() }
                     Button("Volume check") { model.audio.calibrate() }
                 }
                 .buttonStyle(.borderedProminent)
+
+                if model.inProcess && model.humanRider {
+                    // L1 human mode: this slider replaces the iQOO's (start at 70 %).
+                    VStack(alignment: .leading) {
+                        Text("Effort \(Int(model.localEffort / 10)) % of CP").font(.headline)
+                        Slider(value: $model.localEffort, in: 0...2000, step: 10)
+                    }
+                }
 
                 if model.studyMode && model.running {
                     Text("Session running — the phone stays face down").font(.headline)
@@ -85,7 +93,8 @@ struct RideView: View {
                     Text($0.element).tag(UInt8($0.offset))
                 }
             }
-            Toggle("Human rider (the iQOO slider)", isOn: $model.humanRider)
+            Toggle("In-process simulator (L1: no iQOO, no radio)", isOn: $model.inProcess)
+            Toggle(model.inProcess ? "Human rider (slider below)" : "Human rider (the iQOO slider)", isOn: $model.humanRider)
             Toggle("Study mode", isOn: $model.studyMode)
             if model.studyMode {
                 Picker("Rider", selection: $model.rider) {

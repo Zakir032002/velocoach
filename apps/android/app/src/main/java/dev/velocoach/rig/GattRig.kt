@@ -21,6 +21,7 @@ import android.bluetooth.le.AdvertiseCallback
 import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.content.Context
+import android.os.Build
 import android.os.ParcelUuid
 import android.os.SystemClock
 import android.util.Log
@@ -61,11 +62,17 @@ class GattRig(private val ctx: Context, private val driver: SimDriver) {
     fun isSubscribed(uuid: UUID): Boolean = central != null && uuid in subscribed
 
     /** One notification; NotifyQueue makes sure only one is in flight. */
+    @Suppress("DEPRECATION")
     fun notify(uuid: UUID, bytes: ByteArray): Boolean {
         val dev = central ?: return false
         val ch = chars[uuid] ?: return false
         val s = server ?: return false
-        return s.notifyCharacteristicChanged(dev, ch, false, bytes) == BluetoothStatusCodes.SUCCESS
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            s.notifyCharacteristicChanged(dev, ch, false, bytes) == BluetoothStatusCodes.SUCCESS
+        } else {
+            ch.value = bytes // Android 12: the pre-33 API
+            s.notifyCharacteristicChanged(dev, ch, false)
+        }
     }
 
     /** The DISCONNECT fault: drop the link, stay silent for `ms`, then advertise again. */
