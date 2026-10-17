@@ -57,6 +57,8 @@ pub struct Ride {
     pub stream: Stream,
     /// (seconds, decision) for everything the Engine returned.
     pub log: Vec<(f64, CueDecision)>,
+    /// (onset, end, cue id) of clips being "played".
+    playing: Vec<(u64, u64, u32)>,
     t_ns: u64,
     revs_f: f64,
     revs: u16,
@@ -72,6 +74,7 @@ impl Ride {
             engine,
             stream: Stream::default(),
             log: Vec::new(),
+            playing: Vec::new(),
             t_ns: 0,
             revs_f: 0.0,
             revs: 0,
@@ -89,6 +92,15 @@ impl Ride {
 
         for _ in 0..steps {
             let t = self.t_ns;
+
+            let engine = &mut self.engine;
+            self.playing.retain(|&(onset, end, id)| {
+                let done = end <= t;
+                if done {
+                    engine.on_cue_played(id, onset, end, end);
+                }
+                !done
+            });
 
             if t > 0 {
                 self.advance_crank(t);
@@ -111,6 +123,10 @@ impl Ride {
 
             if let Some(d) = self.engine.tick(t) {
                 self.log.push((t as f64 / 1e9, d));
+                if d.arm != vc_efficacy::Arm::Sham {
+                    let onset = t + u64::from(d.lead_ms) * 1_000_000;
+                    self.playing.push((onset, onset + 2_400_000_000, d.id));
+                }
             }
 
             self.t_ns += STEP_NS;
@@ -129,6 +145,10 @@ impl Ride {
     fn feed(&mut self, t: u64, source: Source, bytes: &[u8]) {
         if let Ok(Some(d)) = self.engine.ingest(t, source, bytes) {
             self.log.push((t as f64 / 1e9, d));
+            if d.arm != vc_efficacy::Arm::Sham {
+                let onset = t + u64::from(d.lead_ms) * 1_000_000;
+                self.playing.push((onset, onset + 2_400_000_000, d.id));
+            }
         }
     }
 

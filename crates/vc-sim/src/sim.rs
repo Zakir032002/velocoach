@@ -153,6 +153,17 @@ impl Simulator {
     }
 
     /// Human-mode effort, as thousandths of CP, clamped to 0–2000.
+    /// The rig's "I am the rider" switch: on = the slider drives power and no
+    /// persona reacts; off = the scenario's (or LOAD's) persona again.
+    pub fn set_human(&mut self, on: bool) {
+        self.human = on;
+        self.persona = if on {
+            None
+        } else {
+            Some(self.persona.unwrap_or(self.sc.persona))
+        };
+    }
+
     pub fn set_human_effort(&mut self, permille: i16) {
         self.effort_permille = permille.clamp(0, 2_000);
     }

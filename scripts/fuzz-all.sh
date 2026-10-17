@@ -5,6 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 
 SECS="${1:-600}"
+HOST="$(rustc -vV | sed -n 's/^host: //p')"
 LOG_DIR="build/fuzz-logs"
 mkdir -p "$LOG_DIR"
 
@@ -19,7 +20,7 @@ run() {
 
     if (
         cd "$dir" &&
-        cargo +nightly fuzz run "$target" -- \
+        cargo +nightly fuzz run --target "$HOST" "$target" -- \
             "-max_total_time=$SECS" \
             -rss_limit_mb=1024 \
             -print_final_stats=1
@@ -32,6 +33,7 @@ run() {
         fi
     else
         echo "$target: FAILED — inspect $log"
+        tail -25 "$log"
         failed=1
     fi
 }

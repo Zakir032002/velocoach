@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# vc-ffi for iPhone + simulator -> Swift bindings -> XCFramework.
+# vc-ffi (with the in-process Simulator, for the L1 fallback) for iPhone + simulator
+# -> Swift bindings -> XCFramework.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -10,11 +11,11 @@ OUT="apps/ios/VcCore"
 rustup target add aarch64-apple-ios aarch64-apple-ios-sim >/dev/null
 
 for target in aarch64-apple-ios aarch64-apple-ios-sim; do
-    cargo build -p vc-ffi --profile "$PROFILE" --target "$target"
+    cargo build -p vc-ffi --features sim --profile "$PROFILE" --target "$target"
 done
 
 # Host library: UniFFI reads metadata from this build.
-cargo build -p vc-ffi --profile "$PROFILE"
+cargo build -p vc-ffi --features sim --profile "$PROFILE"
 
 rm -rf build/swift build/headers
 mkdir -p build/swift build/headers

@@ -4,7 +4,7 @@ use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
 use vc_core::testkit::{cpm_bytes, hrm_bytes};
-use vc_core::{Engine, EngineConfig, Source, Step, StepKind, WorkoutPlan};
+use vc_core::{Engine, EngineConfig, LedgerRecord, Source, Step, StepKind, WorkoutPlan};
 use vc_gatt::CrankData;
 
 thread_local! {
@@ -64,8 +64,12 @@ fn ten_thousand_ingests_and_ticks_after_warm_up_allocate_nothing() {
             revs: (k / 3) as u16,
             time_1024: ((k / 3) * 683 % 65_536) as u16,
         };
+        // After the interval, ride the recovery well over its target so that
+        // soft-pedal cues are decided, played and scored while counting.
         let watts = if (2_400..3_360).contains(&k) {
             330.0
+        } else if k >= 3_360 {
+            170.0
         } else {
             160.0
         };
@@ -77,15 +81,37 @@ fn ten_thousand_ingests_and_ticks_after_warm_up_allocate_nothing() {
         }
     }
 
+    let mut drained = [LedgerRecord::SessionEnd {
+        t_ns: 0,
+        cues: 0,
+        dropped: 0,
+    }; 64];
+    let mut scored_cues = 0usize;
+
     let mut e = Engine::new(EngineConfig::default(), plan).unwrap();
     e.start(0);
 
-    let run = |e: &mut Engine, slice: &[(u64, Source, Vec<u8>)]| {
-        for (t, src, bytes) in slice {
-            let _ = e.ingest(*t, *src, bytes);
+    let mut run = |e: &mut Engine, slice: &[(u64, Source, Vec<u8>)]| {
+        for (i, (t, src, bytes)) in slice.iter().enumerate() {
+            let mut decided = e.ingest(*t, *src, bytes).ok().flatten();
 
             if *src == Source::Power {
-                let _ = e.tick(*t);
+                decided = decided.or(e.tick(*t));
+            }
+
+            // Every decision is "played": 2.4 s of audio after its lead.
+            if let Some(d) = decided {
+                let onset = *t + u64::from(d.lead_ms) * 1_000_000;
+                e.on_cue_played(d.id, onset, onset + 2_400_000_000, onset + 2_400_000_000);
+            }
+
+            // About once a simulated second: drain the ledger ring.
+            if i % 4_000 == 0 {
+                let n = e.ledger_pop(&mut drained);
+                scored_cues += drained[..n]
+                    .iter()
+                    .filter(|r| matches!(r, LedgerRecord::Cue { .. }))
+                    .count();
             }
         }
     };
@@ -95,8 +121,20 @@ fn ten_thousand_ingests_and_ticks_after_warm_up_allocate_nothing() {
     // Count allocations from this point onward.
     ARMED.with(|a| a.set(true));
     run(&mut e, &calls[2_000..12_000]);
+    e.end_session(3_000_000_000_000);
     ARMED.with(|a| a.set(false));
 
     let n = COUNT.with(Cell::get);
     assert_eq!(n, 0, "{n} heap allocations on the hot path");
+
+    // The armed region must really have scored cues, or the test proves nothing.
+    let n = e.ledger_pop(&mut drained);
+    scored_cues += drained[..n]
+        .iter()
+        .filter(|r| matches!(r, LedgerRecord::Cue { .. }))
+        .count();
+    assert!(
+        scored_cues > 0,
+        "no cue was observed and recorded while counting"
+    );
 }

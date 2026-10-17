@@ -11,7 +11,7 @@ EXT=$([[ "$(uname)" == Darwin ]] && echo dylib || echo so)
 
 rustup target add aarch64-linux-android >/dev/null
 
-cargo ndk -t arm64-v8a --platform 33 \
+cargo ndk -t arm64-v8a --platform 31 \
     -o "$APP/src/main/jniLibs" \
     build -p vc-ffi --features sim --release
 
