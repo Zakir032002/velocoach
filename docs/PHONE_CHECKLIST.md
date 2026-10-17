@@ -7,6 +7,9 @@ it, the step's "if not" line says what to do.
 All sensor data is **simulated**. The iQOO plays the rider, power meter, heart-rate strap and
 cadence sensor over real Bluetooth. Back to the [README](../README.md).
 
+**New to this? Follow [STEP_BY_STEP.md](STEP_BY_STEP.md) instead.** It covers the same steps
+from zero: installing the tools, merging, the video and submitting.
+
 ## 0. Once, on the MacBook (about 45 min, mostly downloads)
 
 | # | Do | You should see |
