@@ -10,39 +10,39 @@
   },
   "CAD_D": {
    "file": "CAD_D.wav",
-   "ms": 2043
+   "ms": 2101
   },
   "CAD_D__ear_p3_low": {
    "file": "CAD_D__ear_p3_low.wav",
-   "ms": 2403
+   "ms": 2461
   },
   "CAL": {
    "file": "CAL.wav",
-   "ms": 3042
+   "ms": 3007
   },
   "DROP": {
    "file": "DROP.wav",
-   "ms": 2159
+   "ms": 1916
   },
   "DROP__ear_p0": {
    "file": "DROP__ear_p0.wav",
-   "ms": 2599
+   "ms": 2356
   },
   "GO": {
    "file": "GO.wav",
-   "ms": 708
+   "ms": 697
   },
   "GO__ear_p1": {
    "file": "GO__ear_p1.wav",
-   "ms": 1128
+   "ms": 1117
   },
   "GZD_A": {
    "file": "GZD_A.wav",
-   "ms": 2566
+   "ms": 2635
   },
   "GZD_A__ear_p3_high": {
    "file": "GZD_A__ear_p3_high.wav",
-   "ms": 2926
+   "ms": 2995
   },
   "GZD_D": {
    "file": "GZD_D.wav",
@@ -54,35 +54,35 @@
   },
   "HRD": {
    "file": "HRD.wav",
-   "ms": 2345
+   "ms": 2287
   },
   "HRD__ear_p4": {
    "file": "HRD__ear_p4.wav",
-   "ms": 2495
+   "ms": 2437
   },
   "SAF": {
    "file": "SAF.wav",
-   "ms": 2659
+   "ms": 2740
   },
   "SAF__ear_p0": {
    "file": "SAF__ear_p0.wav",
-   "ms": 3099
+   "ms": 3180
   },
   "SPW_A": {
    "file": "SPW_A.wav",
-   "ms": 3286
+   "ms": 3181
   },
   "SPW_A__ear_p2": {
    "file": "SPW_A__ear_p2.wav",
-   "ms": 3706
+   "ms": 3601
   },
   "SPW_D": {
    "file": "SPW_D.wav",
-   "ms": 3367
+   "ms": 3158
   },
   "SPW_D__ear_p2": {
    "file": "SPW_D__ear_p2.wav",
-   "ms": 3787
+   "ms": 3578
   },
   "SRG5": {
    "file": "SRG5.wav",
@@ -102,35 +102,35 @@
   },
   "SRG7": {
    "file": "SRG7.wav",
-   "ms": 1115
+   "ms": 1126
   },
   "SRG7__ear_p1": {
    "file": "SRG7__ear_p1.wav",
-   "ms": 1535
+   "ms": 1546
   },
   "SRG8": {
    "file": "SRG8.wav",
-   "ms": 1091
+   "ms": 1103
   },
   "SRG8__ear_p1": {
    "file": "SRG8__ear_p1.wav",
-   "ms": 1511
+   "ms": 1523
   },
   "WPL_A": {
    "file": "WPL_A.wav",
-   "ms": 2148
+   "ms": 2171
   },
   "WPL_A__ear_p2": {
    "file": "WPL_A__ear_p2.wav",
-   "ms": 2568
+   "ms": 2591
   },
   "WPL_D": {
    "file": "WPL_D.wav",
-   "ms": 2972
+   "ms": 2949
   },
   "WPL_D__ear_p2": {
    "file": "WPL_D__ear_p2.wav",
-   "ms": 3392
+   "ms": 3369
   }
  },
  "gap_ms": 120,
