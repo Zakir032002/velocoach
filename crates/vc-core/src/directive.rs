@@ -83,6 +83,20 @@ impl Directive {
         self as u8
     }
 
+    pub const fn from_code(code: u8) -> Option<Self> {
+        match code {
+            1 => Some(Self::WprimeLow),
+            2 => Some(Self::SoftPedalWarning),
+            3 => Some(Self::GreyZoneDrift),
+            4 => Some(Self::CadenceLow),
+            16 => Some(Self::CardiacDrift),
+            32 => Some(Self::SafetyHr),
+            33 => Some(Self::SensorDropout),
+            40 => Some(Self::SurgePending),
+            _ => None,
+        }
+    }
+
     /// Aki's spelling, used in golden logs and the ledger.
     pub const fn name(self) -> &'static str {
         match self {

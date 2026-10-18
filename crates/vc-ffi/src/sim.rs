@@ -110,6 +110,11 @@ impl Simulator {
     }
 
     /// Human mode: slider effort in thousandths of CP.
+    /// The rig's "I am the rider" switch; it wins over LOAD's human byte.
+    pub fn set_human(&self, on: bool) {
+        lock(&self.inner).set_human(on);
+    }
+
     pub fn set_human_effort(&self, permille: i16) {
         lock(&self.inner).set_human_effort(permille);
     }
@@ -117,4 +122,20 @@ impl Simulator {
     pub fn take_disconnect(&self) -> Option<u32> {
         lock(&self.inner).take_disconnect()
     }
+}
+
+/// iQOO -> iPhone: the rig's send time for one sensor notification.
+#[uniffi::export]
+pub fn encode_stamp(seq: u16, channel: SensorChannel, char_seq: u16, t0_ns: u64) -> Vec<u8> {
+    let channel = match channel {
+        SensorChannel::Hrm => vc_gatt::Channel::Hrm,
+        SensorChannel::Cpm => vc_gatt::Channel::Cpm,
+        SensorChannel::Csc => vc_gatt::Channel::Csc,
+    };
+    crate::telem_bytes(&vc_gatt::Telem::Stamp {
+        seq,
+        channel,
+        char_seq,
+        t0_ns,
+    })
 }
