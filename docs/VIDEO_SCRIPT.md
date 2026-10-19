@@ -1,8 +1,11 @@
 # Video script (≤ 3:00)
 
-What to show: both phones, the BLE link, a spoken cue, the live verdict, the report card, and
-the honest status table. It replaces the older plan in [DEMOS.md](DEMOS.md#the-video-as-the-plan-specifies-it),
-which assumed pilot data and a measured earbud figure; neither exists.
+What to show: both phones and the BLE link, a spoken cue with its live verdict, safety winning,
+the observer refusing to guess, the tuner learning, the report card, and the honest status
+table. Each scene is one feature; their setups are in
+[WHAT_WE_BUILT.md § 3](WHAT_WE_BUILT.md#3-the-demo-scenes-one-feature-each). It replaces the
+older plan in [DEMOS.md](DEMOS.md#the-video-as-the-plan-specifies-it), which assumed pilot data
+and a measured earbud figure; neither exists.
 Back to the [README](../README.md).
 
 Before recording:
@@ -12,18 +15,23 @@ Before recording:
   "pending" on screen, and you say "pending".
 - Set do-not-disturb on both phones and hide Wi-Fi names and notifications.
 
-The script is about 390 words, roughly 2.2 words a second. Read numbers exactly as they appear
-on screen.
+The script is about 400 words, roughly 2.2 words a second. Read numbers exactly as they appear
+on screen. Speed up every wait (4× or 8×); never speed up a cue or a verdict.
 
-| Time | Shot | Voiceover |
+| Time | Shot (scene) | Voiceover |
 |---|---|---|
-| 0:00–0:15 | both phones and an earbud on the desk; slow push-in | "This is velocoach: a voice coach in Rust that measures whether its own cues work. The iPhone is the coach. The Android phone simulates the rider and the sensors. The sensors are simulated; the Bluetooth between the phones is real." |
-| 0:15–0:35 | iQOO rig screen: `advertising true`, then `central …` and the subscribed channels; iPhone: `link: ready` | "The rig advertises a power meter, a heart-rate strap and a cadence sensor over Bluetooth Low Energy. The iPhone subscribes to them like real sensors. Every packet is followed by a timestamp, so latency is measured across the two clocks, with an error bound." |
-| 0:35–1:20 | iPhone, scenario `climb_surge`: Start, then the step counter and quality line; the earcon, then the phrase (earbud close to the mic, caption "speaker-played" if you play it on the speaker); the verdict badge `✓ … L_obs` | "A tone, then the phrase. The core is a sans-IO Rust engine, the same code on the Mac and on the phone. It decided this cue from the power stream. Then it watches what happens: did power move at least half the asked amount, compared with where it was already heading, and hold for three seconds? Here: complied. About one point nine seconds of that latency is smoothing. That figure is derived from the filter, not fitted." |
-| 1:20–1:40 | (optional) human mode: the iQOO slider, `I am the rider`; ease the slider after a cue | "In human mode I'm the rider, on a slider. The same observer scores my response." |
-| 1:40–2:05 | iPhone **Report card**, slowly; the red banner "SIMULATED DATA — persona …, seeds …, observer_version …" | "Every ride ends in a report card. Every page says what the data is: simulated, with the persona, the seeds and the observer version. Shams, cues decided but not played, are scored the same way, so the observer's own false positives are counted too." |
-| 2:05–2:45 | the README **Status** table, scrolled row by row; pause on E1 and the pending rows | "And this is the honest status. Software checks run in CI: golden rides, no allocation per packet, property tests that adaptive code can't reach safety. The observer's ground-truth test does not meet its criterion: fifteen of twenty seeds, seventeen of twenty on held-out seeds, against eighteen. Phone latency: [read your measured row, or say 'pending']. Earbud latency is not measured. The human pilot is pre-registered and not yet run." |
-| 2:45–3:00 | the GitHub repository page, the README's first screen; end card with the URL | "Everything is in the repository: the code, the tests, the failing seeds, and what I'd do next." |
+| 0:00–0:12 | both phones and an earbud on the desk | "This is velocoach: a voice coach in Rust that measures whether its own cues work. The sensors are simulated; the Bluetooth between these two phones is real." |
+| 0:12–0:27 | iQOO rig: `advertising true`, then `central …`; iPhone: `link: ready`, the latency panel | "The Android phone plays the rider, the power meter and the heart-rate strap. The iPhone is the coach. Every packet carries a timestamp, so latency is measured across both clocks, with an error bound." |
+| 0:27–1:00 | **D1** iPhone `climb_surge` at 8:50: tone, "Ease off now, your reserve is at twenty", then `✓ … s` | "When the rider's reserve runs low, a tone, then one short phrase. Then the coach checks: did power move at least half the asked amount, compared with where it was already heading, and hold for three seconds? Complied. About one point nine seconds of that number is the filter's smoothing, derived, not fitted." |
+| 1:00–1:22 | **D3** iPhone `recovery_drift`, redline at 847 s: a phrase cut off by the safety cue; then **D3b** terminal: the property tests passing | "Safety comes first. When heart rate stays near maximum, the safety cue interrupts anything playing. The adaptive code can't touch it: property tests throw random histories at the engine to check that." |
+| 1:22–1:40 | **D4** terminal: `-> confounded … ? grade` | "If something else could explain the change, like a hill, a sensor dropout or coasting, the verdict is 'confounded'. It refuses to guess." |
+| 1:40–2:00 | **D2** terminal: the `tuner_change` line | "In coach mode it adapts, inside Aki Kakko's published ranges. This simulated rider ignores orders but follows suggestions; after sixteen cues the tuner switches phrasing, and logs why." |
+| 2:00–2:20 | **D7** iPhone **Report card**, the red SIMULATED DATA banner; the sham row | "Every ride ends in a report card, labelled with what the data is. Shams, cues decided but not played, are scored too, which measures the observer's own false positives." |
+| 2:20–2:50 | **D8** README **Status** table, row by row; pause on E1 and latency | "The honest status: software checks run in CI. The ground-truth test does not meet its criterion: fifteen of twenty seeds, seventeen of twenty held out, against eighteen. Phone latency: [your row, or 'pending']. Earbud latency is not measured. The human pilot is pre-registered and not yet run." |
+| 2:50–3:00 | the GitHub page; end card with the URL | "Everything is in the repository: the code, the tests, the failing seeds, and what I'd do next." |
+
+Short of time: drop D3's phone shot and keep D3b (terminal only). Optional extra if it fits:
+**D6** (you on the iQOO slider, "the same observer scores my own response").
 
 ## Do not say
 
