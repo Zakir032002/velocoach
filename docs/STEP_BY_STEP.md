@@ -15,6 +15,8 @@ if you don't see it**.
 **Total time:** about 5–7 hours. Roughly 2 of those hours are downloads, which you can leave
 running while you do other steps.
 
+**New to the project? Read [EXPLAINED.md](EXPLAINED.md) first** (what it is, how it works, with diagrams).
+
 **Want to know what every feature, mode and switch is, and how to show each one?** Read
 [WHAT_WE_BUILT.md](WHAT_WE_BUILT.md). This guide is the shortest path; that page lists the extra demo scenes.
 

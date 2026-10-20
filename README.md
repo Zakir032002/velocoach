@@ -18,7 +18,7 @@ The verdicts are scored against the simulator's ground truth.
 - **Human pilot: planned, pre-registered, not yet run** ([STUDY.md](STUDY.md)).
 - **Earbud audio-output latency: not measured.**
 
-[Status](#status) · [3-minute video](docs/VIDEO_SCRIPT.md) (script; link after recording) ·
+[Status](#status) · [Explained from zero](docs/EXPLAINED.md) · [3-minute video](docs/VIDEO_SCRIPT.md) (script; link after recording) ·
 [Phone checklist](docs/PHONE_CHECKLIST.md) · [EFFICACY.md](docs/EFFICACY.md) ·
 [LATENCY.md](docs/LATENCY.md) · [STUDY.md](STUDY.md) · [THIRD_PARTY.md](THIRD_PARTY.md) ·
 [design PDFs](docs/design/)
