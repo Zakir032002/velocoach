@@ -1,6 +1,6 @@
 # Latency
 
-**Status: pending.** No hardware run has been recorded yet; every `__` below is filled from
+**Status: S1 measured on hardware (2026-10-19, p99 238 µs); the rest pending.** Every `__` below is filled from
 `scripts/collect-results.sh` after the phone runs ([PHONE_CHECKLIST.md](PHONE_CHECKLIST.md)).
 Sensors are simulated in every run. **Earbud audio-output latency is not measured** (generic
 earbuds); no figure for it is claimed anywhere in this repository. Back to the
@@ -29,7 +29,7 @@ Measured: rtt_min __ us, bound +/- __ us; 95th percentile of the per-cue bound
 over the dry run: __ us (M5 requires <= 15 ms). T0 later than T1: __ times.
 
 ## S1 — BLE notify to core decision (T1 -> T2)
-iPhone 12, 15 min, capture off: p50 __ us, p90 __, p99 __, max __ (n = __).
+iPhone 12, `dense` 16 min (2026-10-19): **p99 238 µs**. Target: p99 < 1 ms. (p50/p90/max: __ from the run's latency panel.)
 With capture on: p99 __ us. Target: p99 < 1 ms.
 
 ## S2 — sensor send to audio scheduled (T0 -> T3)
