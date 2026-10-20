@@ -15,6 +15,11 @@ if you don't see it**.
 **Total time:** about 5–7 hours. Roughly 2 of those hours are downloads, which you can leave
 running while you do other steps.
 
+**New to the project? Read [EXPLAINED.md](EXPLAINED.md) first** (what it is, how it works, with diagrams).
+
+**Want to know what every feature, mode and switch is, and how to show each one?** Read
+[WHAT_WE_BUILT.md](WHAT_WE_BUILT.md). This guide is the shortest path; that page lists the extra demo scenes.
+
 **Golden rule:** if anything fails, copy the last 30 lines of the Terminal window and paste
 them to Claude in this chat. Don't guess. Every script stops at the first error and prints
 the command that failed.
@@ -284,7 +289,12 @@ tap **Allow**.
 5. *Optional:* record the iQOO's screen at the same time with its own screen recorder
    (quick-settings panel), so you can show the rig side by side.
 
-### 7.3 Optional, only if you have time
+### 7.3 More scenes for the video (recommended)
+The video shows more than one feature. The extra scenes (safety beating everything, "? grade",
+the tuner learning) are in [WHAT_WE_BUILT.md § 3](WHAT_WE_BUILT.md#3-the-demo-scenes-one-feature-each).
+Three of them are one Terminal command each on the Mac, with no phones needed.
+
+### 7.4 Optional, only if you have time
 - **Human mode (E7):**
   - On the iQOO, switch on **I am the rider**; the slider starts at 70 %.
   - On the iPhone, switch on **Human rider (the iQOO slider)**, use scenario
