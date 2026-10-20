@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run before making the repository public (docs/PRE_PUBLIC_CHECKLIST.md). Read-only.
+# Run before making the repository public. Read-only.
 # Exit status 1 on any FAIL.
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -45,11 +45,11 @@ for x in DerivedData/ build/ xcuserdata/; do
 done
 
 # 5. Wording.
-o=$(git grep -n -i -w -E 'validated|proven|efficacy shown|E1 (green|passed)' -- README.md STUDY.md docs/EFFICACY.md docs/LATENCY.md docs/VIDEO_SCRIPT.md docs/RELEASE_NOTES.md \
+o=$(git grep -n -i -w -E 'validated|proven|efficacy shown|E1 (green|passed)' -- README.md STUDY.md docs/EFFICACY.md docs/LATENCY.md docs/EXPLAINED.md docs/WHAT_WE_BUILT.md \
     | grep -v -i -E "do not|don't|never|not say|cannot say|\"(validated|proven|efficacy shown|E1 passed)\"" || true)
 [[ -z "$o" ]] && pass "no overclaiming words in the public documents" || bad "overclaiming: $o"
-# A word in quotes is a list of words not to use (VIDEO_SCRIPT.md's "Do not say"), not a claim.
-u=$(git grep -n -w 'users' -- README.md STUDY.md docs/VIDEO_SCRIPT.md | grep -v -i "not say\|don't\|\"users\"" || true)
+# A word in quotes is a list of words not to use, not a claim.
+u=$(git grep -n -w 'users' -- README.md STUDY.md docs/EXPLAINED.md docs/WHAT_WE_BUILT.md | grep -v -i "not say\|don't\|\"users\"" || true)
 [[ -z "$u" ]] && pass "no \"users\"" || bad "\"users\": $u"
 grep -q 'SIMULATED sensors\|SIMULATED' README.md && pass "README says SIMULATED" || bad "README lacks the SIMULATED claim"
 grep -q 'Human pilot: planned, pre-registered, not yet run' README.md STUDY.md && pass "pilot labelled not yet run" || bad "pilot label missing"

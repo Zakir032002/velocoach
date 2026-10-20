@@ -1,12 +1,11 @@
-# What we built, and how to show all of it
+# What is built, and how to show each part
 
-Short answer: **yes, the whole plan is implemented.** That is about 17,000 lines of Rust plus
+**The whole plan is implemented** except its cut list (end of section 2). That is about 17,000 lines of Rust plus
 about 2,200 lines of Swift (iPhone) and Kotlin (iQOO), all tested in CI. Back to the
 [README](../README.md).
 
-The step-by-step guide only asks for two rides because that is the *minimum* to get
-measured numbers. This page lists **every feature**, says where it lives, and says how to make
-it appear on screen. The demo scenes in section 3 are what you show Aki.
+This page lists **every feature**, says where it lives in the code, and says how to make it
+appear on screen. Section 3 has one demo scene per feature.
 
 ---
 
@@ -73,7 +72,7 @@ exists to make that verdict trustworthy, fast and measurable.
 | **Replay** | re-runs a recorded ride byte for byte, from the `.vcraw` capture | `vc-cli replay` (done by `collect-results.sh`) |
 | **Persona** picker (dana, sam, ned, calib) | which simulated rider the iQOO plays | Dana = good rider; Sam = ignores orders, follows suggestions; Ned = random (statistics check); Calib = the known rider for E1 |
 | **Scenario** picker (11 scenarios) | which workout the rider does | section 3 |
-| **Human rider** | YOU are the rider: a slider on the iQOO replaces the persona | scene D6 |
+| **Human rider** | a person is the rider: a slider on the iQOO replaces the persona | scene D6 |
 | **In-process simulator (L1)** | runs everything on the iPhone with no iQOO and no radio | backup, if Bluetooth won't link |
 | **HR redline at __ s** | forces a heart-rate redline at that second | scene D3 (safety) |
 | **Route delay (ms)** | earbud delay from the loopback test | leave at 0 (earbud latency is not measured) |
@@ -127,18 +126,4 @@ time.
 5. If there's time: **D3** on the phone (18 min) or **D6** (you on the slider, 3 min)
 
 Those five already show the coach, the verdicts, the tuner, safety, confounders, the evidence
-and the honesty. **[VIDEO_SCRIPT.md](VIDEO_SCRIPT.md)** puts them into 3 minutes.
-
----
-
-## 4. What exactly you do
-
-You don't need to understand the code. Do this:
-
-1. Finish [STEP_BY_STEP.md](STEP_BY_STEP.md) Phases 2–6: tools, the two apps, the test ride.
-2. Phase 7: the `dense` latency ride. Then record D1 (and D3 / D5 / D6 if you have time)
-   with the iPhone screen recorder on.
-3. Record the Mac scenes D2, D3b and D4. Press **⌘ Shift 5 → Record Selected Portion**
-   around Terminal, paste each command, and stop.
-4. Phases 8–11: collect, send me the numbers, make the video from
-   [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md), publish, submit.
+and the honesty.

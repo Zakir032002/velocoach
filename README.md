@@ -230,7 +230,7 @@ cargo run -q --release -p vc-cli -- find-interrupt --scenario recovery_drift
 cargo test --release -p vc-harness --test e1 -- --nocapture   # E1: prints N/20 and the failing seeds
 ```
 
-Phones: [docs/STEP_BY_STEP.md](docs/STEP_BY_STEP.md). `scripts/setup-ios.sh` and
+Phones: [docs/PHONE_CHECKLIST.md](docs/PHONE_CHECKLIST.md). `scripts/setup-ios.sh` and
 `scripts/setup-android.sh` install and build everything (no Android Studio needed). CI builds the
 rig APK and compiles the iPhone app on every push.
 

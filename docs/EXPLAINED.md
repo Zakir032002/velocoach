@@ -1,6 +1,6 @@
 # velocoach, explained from zero
 
-This page explains the whole project, assuming you know nothing. Read it top to bottom once.
+This page explains the whole project from first principles, assuming no prior knowledge.
 The diagrams are drawn by GitHub; open this file on github.com to see them as pictures.
 
 **Contents**
@@ -17,7 +17,7 @@ The diagrams are drawn by GitHub; open this file on github.com to see them as pi
 10. [The tests and what each one proves](#10-the-tests-and-what-each-one-proves)
 11. [Honest status](#11-honest-status)
 12. [Scenario walkthroughs (what you see, what happens inside)](#12-scenario-walkthroughs)
-13. [Questions Aki might ask, and the answers](#13-questions-aki-might-ask-and-the-answers)
+13. [Common questions](#13-common-questions)
 14. [Where everything is in the repository](#14-where-everything-is-in-the-repository)
 15. [Glossary](#15-glossary)
 
@@ -636,9 +636,9 @@ flowchart LR
 
 ```mermaid
 pie title The 26 criteria today
-    "Measured in simulation / CI" : 19
+    "Measured (simulation, CI or phones)" : 20
     "Measured, criterion not met (E1)" : 1
-    "Pending phone runs (S1, S2, S3, S6, E7)" : 5
+    "Pending phone runs (S2, S3, S6, E7)" : 4
     "Pending participants (M8)" : 1
 ```
 
@@ -649,8 +649,9 @@ pie title The 26 criteria today
   `docs/EFFICACY_CHANGELOG.md`, and the result was checked on **fresh seeds** to avoid
   fitting: 15/20 and 17/20. The remaining small bias is reported, not hidden. **This
   honesty is a strength:** the instrument reports its own limits.
-- **Needs the phones (you):** latency S1/S2, the soak S6, human-mode video E7, on-device
-  replay.
+- **Measured on the phones (2026-10-19):** decision latency S1, p99 238 µs; the device capture
+  replays identically (S5).
+- **Still needs the phones:** sensor-to-audio latency S2, the soak S6, the human-mode demo E7.
 - **Earbud latency:** not measured; no number claimed.
 - **Human pilot:** planned, pre-registered (`STUDY.md`, protocol hash `92aa968`), **not yet
   run**.
@@ -691,7 +692,7 @@ pie title The 26 criteria today
   logged with its evidence and is impossible in Study mode.
 
 ### F. "You are the rider" (creep_pilot, human mode)
-- **You see:** you hold the iQOO slider at 70 %. The power creeps up, a cue says back off,
+- **You see:** a person holds the iQOO slider at 70 %. The power creeps up, a cue says back off,
   you move the slider down, and the badge shows **your** reaction time.
 - **Inside:** RIDER_INPUT messages carry the slider position; `L_onset` = your first move
   of ≥ 5 % in the asked direction minus the cue onset. A move within 0.35 s is flagged as a
@@ -704,15 +705,15 @@ pie title The 26 criteria today
 
 ---
 
-## 13. Questions Aki might ask, and the answers
+## 13. Common questions
 
 | Question | Answer |
 |---|---|
-| "What's new here vs my posts?" | Your posts design the Policy Engine; this adds the **observer**: a verdict per cue, against a pre-trend, with confounders and shams. |
+| "What's new compared with Aki's posts?" | The posts design the Policy Engine; this adds the **observer**: a verdict per cue, against a pre-trend, with confounders and shams. |
 | "Is it real data?" | No. Sensors and rider are **simulated**; the Bluetooth, phones, audio and timing are real. Every report says SIMULATED DATA. |
 | "How do you know the verdicts are right?" | E1: a hidden known rider is recovered within tolerance on 15/20 seeds (17/20 held out). The target is 18/20, **not met**, and the changelog says why. |
 | "Can the adaptive part break safety?" | No. The tuner's type has no safety field, and property tests (E3) check it on random histories. |
-| "How fast is it?" | Decision < 1 ms target; sensor-to-audio < 150 ms target, ± clock-sync bound (your measured numbers go here). Earbud delay is not measured. |
+| "How fast is it?" | Decision < 1 ms target; sensor-to-audio < 150 ms target, ± clock-sync bound (measured on the iPhone 12: decision p99 238 µs; sensor-to-audio pending). Earbud delay is not measured. |
 | "Why Rust?" | One deterministic, allocation-free, `no_std` core that runs unchanged on Mac, iPhone, Android and a microcontroller, and replays any ride byte for byte. |
 | "Does autonomy phrasing work better?" | Not claimed. The pilot that would test it is pre-registered but not yet run. |
 
@@ -730,8 +731,8 @@ velocoach/
 ├── golden/            golden rides + the golden ledger
 ├── data/sim-study/    simulated study ledgers (personas, not people)
 ├── scripts/           setup-ios.sh, setup-android.sh, collect-results.sh, check-machine.sh, …
-├── docs/              everything you read: this file, STEP_BY_STEP, WHAT_WE_BUILT,
-│                      EFFICACY, LATENCY, VIDEO_SCRIPT, design PDFs, …
+├── docs/              everything you read: this file, WHAT_WE_BUILT, PHONE_CHECKLIST,
+│                      EFFICACY, LATENCY, ENGINEERING_NOTES, design PDFs, …
 ├── STUDY.md           the pre-registered pilot + consent text
 └── README.md          the front page + Status table
 ```
@@ -741,9 +742,9 @@ velocoach/
 | I want to… | Read |
 |---|---|
 | understand the project | **this file** |
-| do the remaining work | `docs/STEP_BY_STEP.md` |
+| run it on the two phones | `docs/PHONE_CHECKLIST.md` |
 | know every feature and how to show it | `docs/WHAT_WE_BUILT.md` |
-| make the video | `docs/VIDEO_SCRIPT.md` |
+| see the engineering decisions and fuzzing | `docs/ENGINEERING_NOTES.md` |
 | see the observer's maths and E1 in detail | `docs/EFFICACY.md`, `docs/EFFICACY_CHANGELOG.md` |
 | see the latency method | `docs/LATENCY.md` |
 

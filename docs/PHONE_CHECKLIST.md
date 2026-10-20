@@ -7,8 +7,7 @@ it, the step's "if not" line says what to do.
 All sensor data is **simulated**. The iQOO plays the rider, power meter, heart-rate strap and
 cadence sensor over real Bluetooth. Back to the [README](../README.md).
 
-**New to this? Follow [STEP_BY_STEP.md](STEP_BY_STEP.md) instead.** It covers the same steps
-from zero: installing the tools, merging, the video and submitting.
+**New to the project?** Read [EXPLAINED.md](EXPLAINED.md) first.
 
 ## 0. Once, on the MacBook (about 45 min, mostly downloads)
 
@@ -26,7 +25,7 @@ from zero: installing the tools, merging, the video and submitting.
 |---|---|---|
 | 1.1 | Settings > About phone > Software version: tap 7 times. Then Settings > System > Developer options: **USB debugging ON** and **Install via USB ON** (OriginOS asks for a vivo account for the second one) | "You are now a developer" |
 | 1.2 | Connect with a data cable and unlock. Tap **Allow** on "Allow USB debugging?" and tick "Always allow" | — |
-| 1.3 | `scripts/setup-android.sh`, or `scripts/setup-android.sh --from-ci` (needs `brew install gh && gh auth login`) | `OK: VeloCoach Rig is installed and open`. The device model and Android/OriginOS version are saved to `build/machine/android-device.txt`: copy them into `docs/INPUTS_NEEDED.md` |
+| 1.3 | `scripts/setup-android.sh`, or `scripts/setup-android.sh --from-ci` (needs `brew install gh && gh auth login`) | `OK: VeloCoach Rig is installed and open`. The device model and Android/OriginOS version are saved to `build/machine/android-device.txt` |
 | 1.4 | On the phone: Settings > Battery > Background power consumption management > VeloCoach Rig > **Allow** (the wording differs between OriginOS versions; look for "No restrictions") and turn Bluetooth on | — |
 | 1.5 | Open VeloCoach Rig and keep it on screen. The screen stays on by itself | `services 4/4 · advertising true`; after the iPhone connects, `central …` and the subscribed channels |
 
@@ -71,11 +70,11 @@ check, the soak check, the audit and the report. Copy its numbers into `docs/LAT
 README status table, changing each row from *pending* to *measured-on-hardware*. Commit
 `results/<stamp>/` (without `raw/*.vcraw` if it is large).
 
-## 6. Record the video
+## 6. Demo scenes
 
-Follow [VIDEO_SCRIPT.md](VIDEO_SCRIPT.md) (≤ 3:00). Then run the pre-public checks in
-[PRE_PUBLIC_CHECKLIST.md](PRE_PUBLIC_CHECKLIST.md), merge the PR, and tag `v0.1.0`/`v0.2.0`
-after the phone runs.
+Each feature has its own demo scene, with exact settings and ride times, in
+[WHAT_WE_BUILT.md § 3](WHAT_WE_BUILT.md#3-the-demo-scenes-one-feature-each). Before making the
+repository public, run `scripts/pre-public-check.sh`.
 
 **Not now:** the human pilot. It is planned and pre-registered ([STUDY.md](../STUDY.md)) but has
 not been run. A later run on yourself is labelled "n=1 author dry run (engineering feasibility,
