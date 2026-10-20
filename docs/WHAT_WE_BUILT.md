@@ -38,8 +38,8 @@ exists to make that verdict trustworthy, fast and measurable.
 | Decodes real Bluetooth sensor bytes (heart rate, power, cadence) | `crates/vc-gatt` | iPhone ride screen: the line `quality  HR … · power … · cadence …` |
 | W′ balance (anaerobic reserve), exact + GoldenCheetah-parity | `crates/vc-physio` | the W′-low cue in `climb_surge` ("Ease off now, your reserve is at twenty") |
 | Signal quality: Fresh → Stale → Lost | `vc-physio` | `dropout` scenario: the quality line changes, then "Check power meter connection." |
-| 8 directives with Aki's names: SURGE_PENDING, SOFT_PEDAL_WARNING, GREY_ZONE_DRIFT, WPRIME_LOW, CADENCE_LOW, CARDIAC_DRIFT, SAFETY_HR, SENSOR_DROPOUT | `crates/vc-core/src/directive.rs` | different scenarios trigger different ones (table in section 3) |
-| Policy Engine with Aki's Solo / Rolling / Group profiles, priorities, cooldowns, P1 interrupts | `vc-core/src/policy.rs` | `safety_hr` / `recovery_drift`: the safety cue cuts off a phrase. Group muting is shown by the property test `group_never_speaks_p2_or_p3` |
+| 8 directives: SURGE_PENDING, SOFT_PEDAL_WARNING, GREY_ZONE_DRIFT, WPRIME_LOW, CADENCE_LOW, CARDIAC_DRIFT, SAFETY_HR, SENSOR_DROPOUT | `crates/vc-core/src/directive.rs` | different scenarios trigger different ones (table in section 3) |
+| Policy Engine with Solo / Rolling / Group profiles, priorities, cooldowns, P1 interrupts | `vc-core/src/policy.rs` | `safety_hr` / `recovery_drift`: the safety cue cuts off a phrase. Group muting is shown by the property test `group_never_speaks_p2_or_p3` |
 | Earcon first, then speech (Piper voice, public domain) | `assets/cues/`, `AudioCuePlayer.swift` | every cue: a tone, then the phrase |
 | Phrase lint (verb first, ≤1 number, 8–12 syllables) | `vc-core/src/lint.rs` | `cargo test -p vc-core lint` |
 | Safety gate: HR > 98 % HRmax for > 120 s, untouchable by adaptive code | `vc-core/src/safety.rs` + property tests | `safety_hr` scenario, or the "HR redline at" box in the app |
@@ -59,7 +59,7 @@ exists to make that verdict trustworthy, fast and measurable.
 
 | Feature | Where | How to see it |
 |---|---|---|
-| Moves Aki's parameters (cooldown 15–45 s, countdown 5–8 s) only inside his ranges | `vc-efficacy/src/tuner.rs` | property test `e4_tuned_parameters_stay_inside_akis_ranges` |
+| Moves delivery parameters (cooldown 15–45 s, countdown 5–8 s) only inside fixed ranges | `vc-efficacy/src/tuner.rs` | property test `e4_tuned_parameters_stay_inside_akis_ranges` |
 | Switches phrasing (Direct → Autonomy) when one clearly works better, and logs why | same | `creep_long` with persona Sam: a `tuner_change` line at 42:00 (terminal command in section 3) |
 | Can never reach safety | type system + `e3_tuning_never_reaches_safety` | the test |
 

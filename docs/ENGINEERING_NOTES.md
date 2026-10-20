@@ -60,7 +60,7 @@ and the measured smoothing lag is nearer 1.5 s than 2.0 s. See docs/EFFICACY.md.
 
 ## The tuner
 Its type holds four delivery parameters and nothing else; safety is out of
-reach by construction (E3) and the ranges are Aki's (E4); frozen in Study.
+reach by construction (E3) and the ranges are fixed (E4); frozen in Study.
 
 ## Fuzzing
 S4, measured 2026-10-16 with `scripts/fuzz-all.sh 600` (cargo-fuzz, libFuzzer, rustc 1.101.0-nightly,
@@ -114,12 +114,12 @@ ctrl 471.5 M executions in 10 minutes (Day 3), 35.1 M across targets (Day 7).
 ### Day 5 — Core Engine, Safety & Workout State Machine
 
 #### 1. Auto-Pause Speed Proxy Substitution
-- **Specification Rule**: Aki's auto-pause rule specifies cadence = 0 RPM and speed < 2 km/h for > 3 s.
+- **Specification Rule**: the auto-pause rule specifies cadence = 0 RPM and speed < 2 km/h for > 3 s.
 - **Hardware Constraint & Substitution**: There is no dedicated wheel-speed sensor in this rig. Missing CPM packets alone cannot indicate a rider has stopped (that could be a sensor dropout).
 - **Implementation**: The Engine substitutes "power Fresh and under 20 W, cranks stopped" for > 3 s (`auto_pause_ns`). While auto-paused, the workout active clock halts and only P1 directives (safety, dropout) remain active.
 
 #### 2. Core Temperature Safety Rule
-- **Observation**: Aki's original safety rule includes a hard cutoff for core body temperature $T_{\text{core}} > 39.5\ ^\circ\text{C}$.
+- **Observation**: the original safety rule includes a hard cutoff for core body temperature $T_{\text{core}} > 39.5\ ^\circ\text{C}$.
 - **Decision**: Documented but not implemented in `RedlineGate` because standard cycling BLE sensors (HRM, CPM) do not measure or transmit core body temperature telemetry.
 
 ### Day 6 — Policy Engine, Phrasing & Golden Logs

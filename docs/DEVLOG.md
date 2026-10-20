@@ -38,11 +38,11 @@
 
 ## Day 5 — 2026-10-12 (v-final plan)
 
-- Done: vc-core no_std (config with Aki's names + profile table, 3-s smoothing, safety gate, workout + auto-pause, eight directives, testkit), table tests, engine tests, alloc test, thumbv7em CI
+- Done: vc-core no_std (config with the published parameter names + profile table, 3-s smoothing, safety gate, workout + auto-pause, eight directives, testkit), table tests, engine tests, alloc test, thumbv7em CI
 - Measured: test count 29; directive timings as in the tables (surge 55/60 s, W′ 106.75 s, safety 122 s)
 - Decision: auto-pause uses "power under 20 W, cranks stopped" because there is no wheel speed
 - Decision: CADENCE_LOW is not a power ask (dir 0), so the observer will not score it on power
-- Decision: Aki's Tcore > 39.5 C rule is documented, not implemented (no sensor)
+- Decision: the Tcore > 39.5 C safety rule is documented, not implemented (no sensor)
 - Broke: none
 - Tomorrow: Policy Engine, phrase bank, lint, S9 proptests, golden format
 
@@ -52,7 +52,7 @@
 - Measured: tests 45; proptest cases 512 + 512 + 24; golden logs surge_wprime 3 / redline_rolling 2 / dropout 1 decisions
 - Decision: safety-critical behaviour is code in decide(), not configuration, so no tuner can reach it
 - Decision: cooldown and observer window run from the clip's real end; the window only binds once cooldown nears 15 s
-- Decision: "Soft-pedal" hyphenated as Aki's verb; four surge recordings, one per lead (5-8 s)
+- Decision: "Soft-pedal" hyphenated as the published verb; four surge recordings, one per lead (5-8 s)
 - Broke: none
 - Tomorrow: vc-gatt RIDER_INPUT + CUE_PLAYED, vc-sim scenarios and personas, vc-cli sim, golden logs from scenarios, 10-min fuzz
 

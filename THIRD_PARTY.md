@@ -9,5 +9,5 @@ What the repository uses but did not write, with licences. Back to the [README](
 | Rust crates | Cargo.lock | see `cargo tree`; direct dependencies include anyhow, heapless, libm, serde, uniffi | all dependencies must be MIT / Apache-2.0 compatible: confirm with `cargo deny` or `cargo license` before tagging |
 | UniFFI | vc-ffi | MPL-2.0 | used as a library and as the binding generator (apps/ios/VcCore, tools/uniffi-bindgen) |
 | GoldenCheetah WPrime.cpp | consulted, not copied (docs/WPRIME_GC.md) | GPL-2.0 | the rule was read; tools/gc_wbal.py and WbalGc are independent code |
-| Aki Kakko's posts (Alphanome Knowledge Hub) | parameter names, profiles, earcon-first rule, phrase rules | cited with URL and UTC date in the README's Credits | velocoach responds to / operationalises them; no endorsement implied; not copied as text |
+| Published coaching-system design notes | directive names, profile values, cooldown/countdown ranges, earcon-first rule, phrase rules | cited in the README's References | used as a specification; not copied as text; no endorsement implied |
 | Apache-2.0 licence text | LICENSE-APACHE | Apache-2.0 | verbatim from apache.org |

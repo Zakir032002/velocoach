@@ -6,7 +6,7 @@ The diagrams are drawn by GitHub; open this file on github.com to see them as pi
 **Contents**
 
 1. [The project in one minute](#1-the-project-in-one-minute)
-2. [Why this project, for whom](#2-why-this-project-for-whom)
+2. [Why this design](#2-why-this-design)
 3. [Objectives: what "done" means](#3-objectives-what-done-means)
 4. [The physical setup](#4-the-physical-setup)
 5. [The life of one cue, start to finish](#5-the-life-of-one-cue-start-to-finish)
@@ -56,10 +56,9 @@ flowchart LR
 
 ---
 
-## 2. Why this project, for whom
+## 2. Why this design
 
-The project was built for **Aki Kakko** at **Domesly** (Alphanome). In his blog posts
-(Oct 2026) Aki described how a smart cycling coach should be designed:
+A real-time cycling coach is usually built from four parts:
 
 - a **state machine** that notices problems (its *directives*, such as `GREY_ZONE_DRIFT`);
 - a separate **Policy Engine** that decides *whether* and *how* to speak, with **profiles**
@@ -67,12 +66,11 @@ The project was built for **Aki Kakko** at **Domesly** (Alphanome). In his blog 
 - **earcon-first** alerts (a short tone, then words);
 - a **safety rule** that always wins.
 
-His "Closed-Loop" post says open-loop systems lack "a real-time state observer to evaluate
-whether the intervention successfully shifted the athlete."
+Such a coach is open-loop: it never learns whether an instruction changed anything.
 
-**velocoach builds his design and adds the missing piece: that observer.** It uses his names
-and his numbers, then measures every cue. The README credits each post. The wording rule is
-that velocoach "responds to" his posts; it never claims he endorsed it.
+**velocoach builds that design and adds the missing piece, an observer** that measures every
+cue against the rider's power and records a verdict. The sources for the published parameter
+values are listed in the README's References.
 
 ---
 
@@ -174,7 +172,7 @@ In plain steps:
 8. **Judge.** It gives a **verdict**: ✓ complied, in 3.0 s.
 9. **Record.** One line goes into the **ledger** (a log file), with every detail.
 10. **Learn.** In Coach mode, the **tuner** may adjust delivery, such as the cooldown or the
-    phrasing, but only inside Aki's ranges and never touching safety.
+    phrasing, but only inside fixed ranges and never touching safety.
 
 ---
 
@@ -281,7 +279,7 @@ stateDiagram-v2
 ```
 
 **Rule: only Fresh data may trigger a coaching cue.** If power stays non-Fresh for 5 s, the
-coach says *"Check power meter connection."* That is Aki's own phrase.
+coach says *"Check power meter connection."*
 
 ### 7.3 W′ balance: the rider's battery
 
@@ -301,7 +299,7 @@ so `WPRIME_LOW` fires: *"Ease off now, your reserve is at twenty."*
 
 ### 7.4 Directives: the 8 things the coach watches for
 
-| Directive (Aki's name) | Fires when… | Priority | Example phrase |
+| Directive | Fires when… | Priority | Example phrase |
 |---|---|---|---|
 | `SAFETY_HR` | heart rate > 98 % of max for > 120 s | **P1** (always wins) | "Ease right off now, heart rate is too high" |
 | `SENSOR_DROPOUT` | power not Fresh for ≥ 5 s | **P1** | "Check power meter connection." |
@@ -316,8 +314,8 @@ Each P2/P3 cue has **two phrasings**, called **arms**:
 - **Direct:** "Back off now, you're drifting into tempo."
 - **Autonomy-preserving:** "Back off now, or is tempo the plan?"
 
-Aki's "Neuro-Psychology" post says commands can trigger *reactance* (people resist being
-ordered). Comparing the two arms tests that.
+Commands can trigger *psychological reactance* (people resist being ordered). Comparing the
+two arms tests that.
 
 ### 7.5 The Policy Engine: should it speak now?
 
@@ -335,7 +333,7 @@ flowchart TD
     PICK --> SAY2["speak: earcon + phrase"]
 ```
 
-Aki's three **profiles** (his published numbers):
+The three **profiles**:
 
 | Profile | Power tolerance | Soft-pedal grace | Grey-zone grace | Talks |
 |---|---|---|---|---|
@@ -413,7 +411,7 @@ reacted about 1.1–1.2 s after the phrase (Dana's true reaction was 1.2 s).
 ### 7.8 The tuner: the coach adapts (Coach mode only)
 
 The tuner looks at the verdicts collected so far and may change **only** delivery settings,
-**only** inside Aki's ranges, and **never** anything about safety. The type system makes that
+**only** inside fixed ranges, and **never** anything about safety. The type system makes that
 impossible to get wrong, and property tests check it.
 
 | Rule | Looks at | If… | Then… |
@@ -619,7 +617,7 @@ flowchart LR
 |---|---|---|
 | **E1** observer vs known rider (Calib: 70 %, 3.0 s, hidden) | the observer's numbers are close to the truth | **15/20 seeds** within ±0.08 and ±0.5 s; **17/20** on fresh seeds. Criterion ≥ 18/20: **not met** (section 11) |
 | **E2** confounders through the whole engine | every "don't know" case is caught | 6/6, and the control ride is *not* flagged |
-| **E3** / **E4** property tests | the tuner can never reach safety; its values stay in Aki's ranges | pass on thousands of random histories |
+| **E3** / **E4** property tests | the tuner can never reach safety; its values stay in their fixed ranges | pass on thousands of random histories |
 | **E5** / **S10** allocation tests | no memory allocation per packet | 0 |
 | **E6** byte-identical ledger | fully deterministic, any OS | Linux = macOS = committed file |
 | **E8** null persona (Ned) | the statistics don't invent effects | 95 % intervals cover 0 in 190/200 runs (95.0 %) |
@@ -709,7 +707,7 @@ pie title The 26 criteria today
 
 | Question | Answer |
 |---|---|
-| "What's new compared with Aki's posts?" | The posts design the Policy Engine; this adds the **observer**: a verdict per cue, against a pre-trend, with confounders and shams. |
+| "What's new compared with a conventional coach?" | A conventional design stops at the Policy Engine; this adds the **observer**: a verdict per cue, against a pre-trend, with confounders and shams. |
 | "Is it real data?" | No. Sensors and rider are **simulated**; the Bluetooth, phones, audio and timing are real. Every report says SIMULATED DATA. |
 | "How do you know the verdicts are right?" | E1: a hidden known rider is recovered within tolerance on 15/20 seeds (17/20 held out). The target is 18/20, **not met**, and the changelog says why. |
 | "Can the adaptive part break safety?" | No. The tuner's type has no safety field, and property tests (E3) check it on random histories. |
@@ -758,7 +756,7 @@ velocoach/
 | **Earcon** | the short tone before the words |
 | **Directive** | a condition that wants a cue (e.g. `WPRIME_LOW`) |
 | **Policy Engine** | decides whether/when/how a directive gets spoken |
-| **Profile** | Solo / Rolling / Group: Aki's settings for riding context |
+| **Profile** | Solo / Rolling / Group: settings for the riding context |
 | **P1 / P2 / P3** | priority tiers: P1 = safety and countdowns, always wins |
 | **Arm** | a phrasing variant: Direct or Autonomy (or Sham = silent) |
 | **Sham** | a cue decided but not played, still scored, to measure false positives |

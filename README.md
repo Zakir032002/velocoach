@@ -23,22 +23,22 @@ rider/sensor data).**
 
 [What's built](#whats-built) · [Results](#results) · [Status](#status) ·
 [Explained from zero](docs/EXPLAINED.md) · [Every feature](docs/WHAT_WE_BUILT.md) ·
-[EFFICACY.md](docs/EFFICACY.md) · [LATENCY.md](docs/LATENCY.md) · [design PDFs](docs/design/)
+[EFFICACY.md](docs/EFFICACY.md) · [LATENCY.md](docs/LATENCY.md)
 
 ---
 
 ## The idea
 
-Coaching apps talk to riders, but none of the products the plan surveyed measures **whether
-each instruction worked**. Aki Kakko's posts describe a coach built from directives, a
-separate Policy Engine, context profiles and earcon-first alerts. His Closed-Loop post names
-what is missing: a real-time observer that evaluates whether the intervention shifted the
-athlete. velocoach implements that design with his names and numbers, and adds the observer.
+Most coaching systems are open-loop: they issue an instruction and never check whether the
+rider responded. velocoach closes the loop. A state machine raises **directives**, a separate
+**Policy Engine** decides whether and how to speak (context profiles, priorities, cooldowns,
+earcon-first alerts), and an **observer** then measures each cue's effect on the power stream
+and records a verdict. The verdicts feed a bounded tuner and a per-ride report.
 
 ```mermaid
 flowchart LR
     S["sensors<br/>(simulated on the iQOO)"] -- "real Bluetooth" --> D["decode + physiology<br/>W′ battery, data quality"]
-    D --> R["8 coaching rules<br/>(Aki's directives)"]
+    D --> R["8 coaching rules<br/>(directives)"]
     R --> P["Policy Engine<br/>priority · cooldown · profile"]
     P --> A["earcon + phrase<br/>direct or softer wording"]
     A --> O["observer<br/>next 15 s of power vs<br/>where it was heading"]
@@ -58,7 +58,7 @@ flowchart LR
 | Priorities | safety and countdowns (P1) override everything and are never muted; coaching (P2/P3) waits its turn and never talks over another cue | `vc-core` |
 | Two wordings | each coaching cue has a direct phrasing ("Ease off now, your reserve is at twenty") and a softer one ("Ease off now, or save it for later?") | `vc-core` |
 | Self-check (observer) | after every cue, compares the next 15 s of power with where power was already heading: complied, partial, ignored, reversed, or "can't tell" (a hill, coasting, bad data, another cue) | `vc-efficacy` |
-| Learning (tuner) | if a rider responds better to the softer wording, switches to it; adjusts cooldown and countdown only inside Aki's ranges; can never touch safety | `vc-efficacy` |
+| Learning (tuner) | if a rider responds better to the softer wording, switches to it; adjusts cooldown (15–45 s) and countdown (5–8 s) only inside fixed ranges; can never touch safety | `vc-efficacy` |
 | Ledger and replay | every decision and verdict is one JSON line; a recorded phone ride replays on the Mac identically | `vc-core`, `vc-report` |
 | Study mode | randomised wording plus silent "sham" cues (direct 40 % / softer 40 % / sham 20 %), so the coach's effect can be measured fairly; tuner frozen | `vc-core` |
 | Report card | per-ride HTML summary with statistics, always labelled with what the data is: SIMULATED DATA, persona, seed, observer version | `vc-report` |
@@ -150,7 +150,7 @@ The first observer scored 0/20. The three corrections made since, and the reason
 | Tests | **205** pass in a debug build; **208** with the 3 slow statistical tests (E1 ×2, E8) in release |
 | Fuzzing | 6 decoders × 10 min, ~1.3 billion inputs, **0 crashes** |
 | Determinism | same seed → byte-identical ledger on Linux and macOS (CI); 5/5 golden rides |
-| Safety | property tests: P1 never muted, the tuner can never reach safety, tuned values stay in Aki's ranges |
+| Safety | property tests: P1 never muted, the tuner can never reach safety, tuned values stay inside their fixed ranges |
 | Confounders | 6/6 caught through the whole engine; the control ride is not flagged |
 | Statistics | with a rider who has no preference, the 95 % interval covers zero in 190/200 runs |
 | Embedded | 5 core crates build `no_std` for a Cortex-M4F microcontroller; 0 allocations per packet |
@@ -158,7 +158,7 @@ The first observer scored 0/20. The three corrections made since, and the reason
 
 ## Status
 
-One row per success criterion from the plan ([docs/design/](docs/design/)):
+One row per success criterion of the project plan:
 *measured-on-hardware* (phone run), *measured-in-simulation* (software, simulated sensors, CI
 unless noted), or *pending*. Every row names the test or step that produces it.
 
@@ -177,7 +177,7 @@ unless noted), or *pending*. Every row names the test or step that produces it.
 | E1 | observer recovers a known rider (Calib 0.70 / 3.0 s) | measured-in-simulation | **criterion not met:** 15/20 seeds within tolerance (seeds 4,5,8,12,17 fail); held-out 17/20 (seeds 1003,1005,1013 fail) | `e1_development_seeds`, `e1_held_out_seeds` (regression guards at the measured level) | [EFFICACY.md](docs/EFFICACY.md#e1-the-observer-recovers-a-known-rider--criterion-not-met), [changelog](docs/EFFICACY_CHANGELOG.md) |
 | E2 | every confounder → Confounded, through the Engine | measured-in-simulation | 6/6, control not confounded | `e2_every_confounder_reaches_the_verdict`, `the_control_ride_is_ignored_not_confounded` | [EFFICACY.md](docs/EFFICACY.md#e2-every-confounder-is-caught-through-the-full-engine) |
 | E3 | the tuner cannot reach safety | measured-in-simulation | holds | `e3_tuning_never_reaches_safety` | [EFFICACY.md](docs/EFFICACY.md#e3e4-the-tuners-reach) |
-| E4 | tuned parameters stay inside Aki's ranges | measured-in-simulation | holds | `e4_tuned_parameters_stay_inside_akis_ranges` | [EFFICACY.md](docs/EFFICACY.md#e3e4-the-tuners-reach) |
+| E4 | tuned parameters stay inside their fixed ranges | measured-in-simulation | holds | `e4_tuned_parameters_stay_inside_akis_ranges` | [EFFICACY.md](docs/EFFICACY.md#e3e4-the-tuners-reach) |
 | E5 | observer update: 0 allocations | measured-in-simulation | 0 | `ten_cues_over_ten_minutes_allocate_nothing` | `crates/vc-efficacy/tests/alloc.rs` |
 | E6 | same seed → byte-identical ledger, two OSes | measured-in-simulation | Linux = macOS = golden | CI "E6 byte-identical ledger"; `same_seed_and_cues_give_identical_rides_and_records` | [golden/creep_study_11.jsonl](golden/creep_study_11.jsonl) |
 | E7 | human-mode demo on video | pending | — | scene D6 | [WHAT_WE_BUILT.md](docs/WHAT_WE_BUILT.md#3-the-demo-scenes-one-feature-each) |
@@ -247,19 +247,10 @@ trainers with the same ledger; FIT-file replay through the same engine.
 
 ## Credits
 
-velocoach-rs responds to, and operationalises, ideas from Aki Kakko's posts on the Alphanome
-Knowledge Hub. It is not endorsed by Aki Kakko or Domesly. Dates are `article:published_time`
-in UTC:
-
-- [The Adaptive Architecture: Solving Audio Fatigue and Context Shift in Real-Time Outdoor Cycling Coaching](https://www.alphanome.ai/post/the-adaptive-architecture-solving-audio-fatigue-and-context-shift-in-real-time-outdoor-cycling-coac) — 2026-10-05: the Policy Engine, profiles, earcon-first alerts, the "> 3 seconds" hold.
-- [The Static FIT-File Paradox: Closing the Loop Between Static Prescriptions and Real-Time Adaptive Execution](https://www.alphanome.ai/post/the-static-fit-file-paradox-closing-the-loop-between-static-prescriptions-and-real-time-adaptive-ex) — 2026-10-04
-- [Algorithmic Calibration of Stimulus Efficiency in Endurance Systems](https://www.alphanome.ai/post/algorithmic-calibration-of-stimulus-efficiency-in-endurance-systems) — 2026-10-03
-- [Bridging The Gap Between Static Workout Plans and Live Sensory Stream](https://www.alphanome.ai/post/bridging-the-gap-between-static-workout-plans-and-live-sensory-stream) — 2026-09-28
-- [The Psychology of the Soft-Pedal: Overcoming the Cognitive Pause in Endurance Performance](https://www.alphanome.ai/post/the-psychology-of-the-soft-pedal-overcoming-the-cognitive-pause-in-endurance-performance) — 2026-09-02
-- [Next-Generation Cycling Technology: A 2026 Industry Analysis](https://www.alphanome.ai/post/next-generation-cycling-technology-a-2026-industry-analysis) — 2026-08-12
-- [Investor Analysis: The Active Coaching Category Paradigm](https://www.alphanome.ai/post/investor-analysis-the-active-coaching-category-paradigm) — 2026-08-06
-- [Closed-Loop Cybernetic Intelligence in Cycling: Real-Time Active Coaching via Multi-Sensor Fusion and Edge-AI Intervention Architecture](https://www.alphanome.ai/post/closed-loop-cybernetic-intelligence-in-cycling-real-time-active-coaching-via-multi-sensor-fusion-an) — 2026-08-02
-- [The Neuro-Psychology of Algorithmic Guidance](https://www.alphanome.ai/post/the-neuro-psychology-of-algorithmic-guidance-attentional-ergonomics-agency-and-stress-dynamics-in): psychological reactance, the reason for the softer-wording arm.
+The directive names, context-profile values (tolerance, grace periods), cooldown and
+countdown ranges, the earcon-first rule and the safety threshold follow published
+coaching-system design notes, listed under References. This is an independent project; it is
+not endorsed by the authors of the referenced work.
 
 W′bal follows Skiba's differential model as implemented in GoldenCheetah (independent port,
 cross-checked: [WPRIME_GC.md](docs/WPRIME_GC.md)). The voice is Piper `en_US-ljspeech-medium`,
@@ -268,6 +259,16 @@ trained on the public-domain LJ Speech dataset
 
 Author: Zakir Shaik. Open-source contributor to RisingWave, Apache Kvrocks and Apache Fury
 (since 2024).
+
+## References
+
+- [The Adaptive Architecture: Solving Audio Fatigue and Context Shift in Real-Time Outdoor Cycling Coaching](https://www.alphanome.ai/post/the-adaptive-architecture-solving-audio-fatigue-and-context-shift-in-real-time-outdoor-cycling-coac) (2026-10-05)
+- [The Static FIT-File Paradox: Closing the Loop Between Static Prescriptions and Real-Time Adaptive Execution](https://www.alphanome.ai/post/the-static-fit-file-paradox-closing-the-loop-between-static-prescriptions-and-real-time-adaptive-ex) (2026-10-04)
+- [Algorithmic Calibration of Stimulus Efficiency in Endurance Systems](https://www.alphanome.ai/post/algorithmic-calibration-of-stimulus-efficiency-in-endurance-systems) (2026-10-03)
+- [Bridging The Gap Between Static Workout Plans and Live Sensory Stream](https://www.alphanome.ai/post/bridging-the-gap-between-static-workout-plans-and-live-sensory-stream) (2026-09-28)
+- [The Psychology of the Soft-Pedal: Overcoming the Cognitive Pause in Endurance Performance](https://www.alphanome.ai/post/the-psychology-of-the-soft-pedal-overcoming-the-cognitive-pause-in-endurance-performance) (2026-09-02)
+- [Closed-Loop Cybernetic Intelligence in Cycling: Real-Time Active Coaching via Multi-Sensor Fusion and Edge-AI Intervention Architecture](https://www.alphanome.ai/post/closed-loop-cybernetic-intelligence-in-cycling-real-time-active-coaching-via-multi-sensor-fusion-an) (2026-08-02)
+- [The Neuro-Psychology of Algorithmic Guidance](https://www.alphanome.ai/post/the-neuro-psychology-of-algorithmic-guidance-attentional-ergonomics-agency-and-stress-dynamics-in)
 
 ## License
 
